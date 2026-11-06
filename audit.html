@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Platform self-check</title>
+  <style>body{font-family:"Microsoft YaHei",sans-serif;max-width:640px;margin:60px auto;padding:0 20px;color:#142033;line-height:1.8}a.b{display:inline-block;margin:6px 8px 6px 0;padding:8px 16px;border-radius:8px;background:#3d55d1;color:#fff;text-decoration:none}pre{background:#f4f6fa;border:1px solid #dde3ec;border-radius:8px;padding:10px;white-space:pre-wrap;font-size:13px}</style>
+</head>
+<body>
+  <h1>Platform self-check</h1>
+  <p>The self-check opens every model and every stage, clicks all buttons and switches, runs the field-synthesis guide, the worked problems, and the Add problems page, and shows the result at the bottom right of the page. It takes about 1–2 minutes. Do not touch the page while it runs.</p>
+  <p><a class="b" href="lab.html#audit">1. Check the lab</a><a class="b" href="examples.html#audit">2. Check the worked problems</a></p>
+  <h2>Last result</h2>
+  <pre id="r">(Not run yet)</pre>
+  <script>
+    var a = localStorage.getItem('ejp-lab-en:audit:Lab'), b = localStorage.getItem('ejp-lab-en:audit:Worked problems');
+    if (a || b) document.getElementById('r').textContent = [a, b].filter(Boolean).join('\n\n');
+  </script>
+</body>
+</html>
