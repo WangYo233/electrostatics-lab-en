@@ -1,0 +1,64 @@
+{
+  "id": "my-tpt-triangle-2026",
+  "title": "Equilateral triangle: three like charges and potential along a median",
+  "model": 7,
+  "kind": "tpl",
+  "tpl": "tri",
+  "charges": {
+    "A": 1,
+    "B": 1,
+    "C": 1
+  },
+  "pts": {
+    "G": {
+      "def": {
+        "t": "face",
+        "f": [
+          "A",
+          "B",
+          "C"
+        ]
+      }
+    },
+    "N": {
+      "def": {
+        "t": "mid",
+        "a": "A",
+        "b": "B"
+      }
+    },
+    "M": {
+      "def": {
+        "t": "mid",
+        "a": "B",
+        "b": "C"
+      }
+    },
+    "P": {
+      "def": {
+        "t": "xyz",
+        "p": [
+          0,
+          0,
+          0.816496580927726
+        ]
+      }
+    }
+  },
+  "qs": [
+    {
+      "t": "E",
+      "at": "P"
+    },
+    {
+      "t": "E",
+      "at": "M"
+    },
+    {
+      "t": "trend",
+      "a": "G",
+      "b": "M"
+    }
+  ],
+  "note": "P is directly above G, with PA = PB = PC = a. N and M are the midpoints of AB and BC."
+}
