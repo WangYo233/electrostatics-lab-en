@@ -21,8 +21,8 @@
   };
   // URL parameters → initial state (a pure function, easy to test)
   X.route = function (search) {
-    const q = new URLSearchParams(search || ''), mode = q.get('mode'), model = q.get('model'), problem = q.get('problem');
-    return { mode: mode === 'add' || mode === 'teacher' ? 'teacher' : 'student', model: model && X.LABS[+model] ? +model : null, problem: problem || null };
+    const q = new URLSearchParams(search || ''), mode = q.get('mode'), model = q.get('model'), problem = q.get('problem'), guide = q.get('guide');
+    return { mode: mode === 'add' || mode === 'teacher' ? 'teacher' : 'student', model: model && X.LABS[+model] ? +model : null, problem: problem || null, guide: guide || null };
   };
   window.addEventListener('DOMContentLoaded', () => {
     try { W.init(); } catch (e) { U.$('#stage').replaceChildren(h('p.err', null, 'WebGL could not be initialized, so the 3D view cannot be shown. Reason: ' + e.message)); return; }
@@ -54,5 +54,9 @@
     if (linked) X.open(linked); else if (r.model) X.openModel(r.model); else X.open(X.BUILTIN[0]);
     if (r.mode === 'teacher') X.T.start(null, r.model ? (X.firstItem(r.model) || {}).key : null);
     X.setMode(r.mode, true);
+    if (r.mode === 'student' && linked && r.guide) {
+      const i = Number(r.guide) - 1;
+      if (Number.isInteger(i) && i >= 0 && i < linked.qs.length) X.guide(i);
+    }
   });
 })(window.EL);
