@@ -16,6 +16,7 @@
     { id: 'octa-work', title: 'Regular octahedron: work done by the electric force', model: 5, kind: 'tpl', tpl: 'octa', charges: { E: 1, F: 1, A: -1, C: -1 },
       pts: { O: { def: { t: 'center' } }, P: { def: { t: 'mid', a: 'E', b: 'A' } } },
       qs: [{ t: 'E', at: 'O' }, { t: 'E', at: 'P' }, { t: 'W', a: 'B', b: 'O', q0: -1 }] },
+    { id: 'tpt-triangle-three-like', title: 'Equilateral triangle: three like charges and potential along a median', src: 'Article case', model: 7, kind: 'tpl', tpl: 'tri', charges: { A: 1, B: 1, C: 1 }, pts: { G: { def: { t: 'face', f: ['A', 'B', 'C'] } }, M: { def: { t: 'mid', a: 'B', b: 'C' } }, P: { def: { t: 'xyz', p: [0, 0, Math.sqrt(2 / 3)] } } }, qs: [{ t: 'E', at: 'P' }, { t: 'E', at: 'M' }, { t: 'trend', a: 'G', b: 'M' }], note: 'P is directly above G, with PA = PB = PC = a. M is the midpoint of BC.' },
     { id: 'tri-above', title: 'Equilateral triangle: field directly above the center', model: 7, kind: 'tpl', tpl: 'tri', charges: { A: 1, B: 1, C: -1 },
       pts: { O: { def: { t: 'face', f: ['A', 'B', 'C'] } }, P: { def: { t: 'xyz', p: [0, 0, Math.sqrt(2 / 3)] } } },
       qs: [{ t: 'E', at: 'P' }, { t: 'E', at: 'O' }, { t: 'V', at: 'P' }],
