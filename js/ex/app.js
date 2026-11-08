@@ -2,7 +2,7 @@
 // Worked-problem module entry: mode switching (Worked problems / Add problems), URL parameters, display toggles, import, theme
 // URL: examples.html?mode=add (?mode=teacher is also accepted) opens Add problems; examples.html?model=<lab model id> opens the first worked problem of that model
 (function (EL) {
-  const U = EL.U, h = U.h, X = EL.EX, W = X.W;
+  const U = EL.U, h = U.h, K = EL.UI, X = EL.EX, W = X.W;
   // The internal mode name is still 'teacher' (the style selectors body[data-exmode] depend on it); the interface text is "Add problems"
   X.setMode = function (m, now) {
     if (!now && document.body.dataset.exmode !== m && EL.motion) return EL.motion.swap(() => X.setMode(m, true));
@@ -20,6 +20,20 @@
     const L = W.layers, items = [['geom', 'Geometry'], ['sphere', 'Inscribed sphere'], ['lines', 'Field lines'], ['flow', 'Flow animation'], ['labels', 'Labels']];
     U.$('#sbLayers').replaceChildren(...items.map(([k, t]) => h('button', { type: 'button', class: L[k] ? 'on' : '', 'aria-pressed': L[k], onclick: () => { L[k] = !L[k]; X.renderChips(); if (W.last) W.show(...W.last); } }, t)));
   };
+  function openElementStyle(e) {
+    e.preventDefault();
+    const canvas = U.$('#gl'), rect = canvas.getBoundingClientRect(), x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const sol = X.S.sol, src = sol && sol.R.sources.map(s => ({ s, p: W.r.cam.toScreen(W.M(s.p)) })).filter(o => o.p).sort((a, b) => Math.hypot(a.p[0] - x, a.p[1] - y) - Math.hypot(b.p[0] - x, b.p[1] - y))[0];
+    if (!src || Math.hypot(src.p[0] - x, src.p[1] - y) > 32) return;
+    const menu = U.$('#elementStyle'), look = W.appearance[src.s.label] || {};
+    const color = h('input', { type: 'color', value: look.color || U.toHex(src.s.q > 0 ? EL.C.pos : EL.C.neg), 'aria-label': 'Charge color' });
+    color.addEventListener('input', () => { W.appearance[src.s.label] = Object.assign({}, W.appearance[src.s.label], { color: color.value }); U.store.set('ex:appearance', W.appearance); if (W.last) W.show(...W.last); });
+    const size = K.slider({ label: 'Charge size', min: 0.6, max: 2.4, step: 0.1, val: look.size || 1, on: v => { W.appearance[src.s.label] = Object.assign({}, W.appearance[src.s.label], { size: v }); U.store.set('ex:appearance', W.appearance); if (W.last) W.show(...W.last); } });
+    const glow = K.check('Charge glow animation', W.r.fx.glow, v => { W.r.fx.glow = v; if (W.last) W.show(...W.last); });
+    const reveal = K.check('Animate field-line drawing', W.r.fx.reveal, v => { W.r.fx.reveal = v; if (W.last) W.show(...W.last); });
+    menu.replaceChildren(h('b', null, src.s.label + ' appearance'), h('label.row.wrap', null, h('span', null, 'Color'), color), size, glow, reveal);
+    menu.hidden = false; menu.style.left = Math.min(e.clientX, innerWidth - 250) + 'px'; menu.style.top = Math.min(e.clientY, innerHeight - 190) + 'px';
+  }
   // URL parameters → initial state (a pure function, easy to test)
   X.route = function (search) {
     const q = new URLSearchParams(search || ''), mode = q.get('mode'), model = q.get('model'), problem = q.get('problem'), guide = q.get('guide');
@@ -27,6 +41,9 @@
   };
   window.addEventListener('DOMContentLoaded', () => {
     try { W.init(); } catch (e) { U.$('#stage').replaceChildren(h('p.err', null, 'WebGL could not be initialized, so the 3D view cannot be shown. Reason: ' + e.message)); return; }
+    U.$('#stage').after(U.$('#caption')); U.$('#caption').classList.add('glass');
+    U.$('#gl').addEventListener('contextmenu', openElementStyle);
+    document.addEventListener('pointerdown', e => { if (!U.$('#elementStyle').contains(e.target)) U.$('#elementStyle').hidden = true; });
     X.renderChips(); X.renderList();
     U.$$('.modes button').forEach(b => b.addEventListener('click', () => X.setMode(b.dataset.mode)));
     U.$('#btnTheme').addEventListener('click', () => W.setTheme(EL.theme === 'dark' ? 'light' : 'dark'));

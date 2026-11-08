@@ -1,7 +1,7 @@
 ﻿'use strict';
 // Three-dimensional knowledge map on the home page (Canvas 2D, with its own 3D rotation and projection, no external library).
 // Starts from the root node "Electrostatic field"; click a node to expand it level by level; drag to rotate and scroll to zoom; a model node opens the lab or the worked-problems page.
-// Layout: each visible node takes one row (pre-order of the tree), and its level determines its horizontal position and depth; in the default view no row labels overlap.
+// Each level occupies a spherical shell; straight edges connect each node to its parent.
 // The list beside the map stays in sync with it and works with Tab and Enter, as an accessible alternative to the map.
 (function () {
   var M = {
@@ -54,10 +54,8 @@
   }
   var root = make(TREE, null, 0); root.a = 1;
   function visible(n) { for (var p = n.parent; p; p = p.parent) if (!p.open) return false; return true; }
-  // ---------- Layout (world coordinates in CSS pixels; z is depth) ----------
-  // Horizontal tree: one column per level, with the column width measured from the longest label of that level; each leaf (including unexpanded nodes) takes one row, and a parent sits at the middle height of its children.
-  // Depth: levels are staggered front to back, and rows are slightly staggered too; dragging to rotate shows the three-dimensional arrangement of the levels.
-  var W = 0, H = 0, small = false, ROW = 30, colX = [];
+  // ---------- Layout (world coordinates in CSS pixels) ----------
+  var W = 0, H = 0, small = false;
   var FONT = { 0: 'bold 17px', 1: '600 14.5px', 2: '13.5px', 3: '13px' };
   var FAM = ' "Microsoft YaHei", "PingFang SC", sans-serif';
   function font(n) { return (small ? ['bold 15px', '600 13px', '12.5px', '12px'][n.level] : FONT[n.level]) + FAM; }
@@ -65,56 +63,29 @@
   function labelW(n) { g.font = font(n); return g.measureText(txt(n)).width + 14; }
   function layout() {
     var vis = nodes.filter(function (n) { return n === root || visible(n); });
-    var maxW = [0, 0, 0, 0]; vis.forEach(function (n) { maxW[n.level] = Math.max(maxW[n.level], labelW(n)); });
-    var gap = small ? 26 : 38, x = 0, deep = 0; colX = [];
-    vis.forEach(function (n) { deep = Math.max(deep, n.level); });
-    for (var L = 0; L < 4; L++) { colX[L] = x; x += 14 + maxW[L] + gap; }
-    var need = colX[deep] + 14 + maxW[deep] + 40;
-    // When the canvas cannot hold the horizontal tree, switch to an indented layout (one row per node, indented by level) and make the canvas taller according to the number of rows
-    outline = need > W * 0.97;
-    var slot = 0;
-    if (outline) {
-      vis.forEach(function (n) { n.row = 0; });
-      (function lay(n) { n.row = slot++; if (n.open) n.kids.forEach(lay); })(root);
-      ROW = small ? 29 : 30;
-      for (L = 0; L < 4; L++) colX[L] = L * (small ? 20 : 26);
-      var want = Math.max(baseH, Math.ceil(slot * ROW + 40)) + 'px';
-      if (cv.style.height !== want) cv.style.height = want;
-    } else {
-      if (cv.style.height) cv.style.height = '';
-      (function lay(n) {
-        if (n.open && n.kids.length) { n.kids.forEach(lay); n.row = (n.kids[0].row + n.kids[n.kids.length - 1].row) / 2; }
-        else n.row = slot++;
-      })(root);
-      ROW = Math.max(small ? 25 : 27, Math.min(46, (H - 44) / Math.max(1, slot)));
-    }
-    var mid = (slot - 1) / 2;
-    nodes.forEach(function (n) {
-      var row = n.row === undefined ? 0 : n.row;
-      // Deeper levels come slightly forward (z negative) and rows alternate front to back to show the layered depth; the default pitch is 0, so nodes in one row stay at the same height
-      // y is compensated for perspective according to depth, so rows are evenly spaced in the default view and labels do not overlap
-      var z = -30 * n.level + 12 * Math.sin(row * 1.9);
-      n.t = [colX[n.level], (mid - row) * ROW * (CAM + z) / CAM, z];
-    });
-    nodes.forEach(function (n) { if (!(n === root || visible(n))) delete n.row; });
-    var right = outline ? Math.max.apply(null, vis.map(function (n) { return colX[n.level] + labelW(n) + 14; })) : colX[deep] + 14 + maxW[deep];
-    ctrT = [(right - 16) / 2, 0, 0];
-    var radialStep = deep ? Math.max(34, Math.min((W - 150) * 0.46 / deep, (H - 64) * 0.46 / deep)) : 0;
+    var deep = 0, maxLabel = 0;
+    vis.forEach(function (n) { deep = Math.max(deep, n.level); maxLabel = Math.max(maxLabel, labelW(n)); });
+    // Leave room for the full sphere after any projection angle and for its labels.
+    var usable = Math.max(8, Math.min(W, H) * 0.5 - maxLabel - 28);
+    var radialStep = deep ? usable / (Math.SQRT2 * deep) : 0;
     nodes.forEach(function (n) { n.t = [0, 0, 0]; });
+    var golden = Math.PI * (3 - Math.sqrt(5));
     for (var level = 1; level <= deep; level++) {
-      var ring = vis.filter(function (n) { return n.level === level; });
-      ring.forEach(function (n, i) { var a = -Math.PI / 2 + 2 * Math.PI * i / ring.length; n.t = [radialStep * level * Math.cos(a), radialStep * level * Math.sin(a), 0]; });
+      var ring = vis.filter(function (n) { return n.level === level; }), count = ring.length;
+      ring.forEach(function (n, i) {
+        var z = 1 - 2 * (i + 0.5) / count, rho = Math.sqrt(Math.max(0, 1 - z * z)), a = golden * i;
+        n.t = [radialStep * level * rho * Math.cos(a), radialStep * level * rho * Math.sin(a), radialStep * level * z];
+      });
     }
-    outline = false; ctrT = [0, 0, 0];
+    ctrT = [0, 0, 0];
   }
 
   // ---------- View ----------
-  var YAW0 = 0.2, PITCH0 = 0, CAM = 900, outline = false, baseH = 320;
+  var YAW0 = 0.2, PITCH0 = 0, CAM = 900;
   var yaw = YAW0, pitch = PITCH0, zoom = 1, hover = null, focusN = null, proj = [];
   var ctr = [0, 0, 0], ctrT = [0, 0, 0];
   function resize() {
     var dpr = window.devicePixelRatio || 1;
-    if (!cv.style.height) baseH = cv.clientHeight;
     W = cv.clientWidth; H = cv.clientHeight; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     g.setTransform(dpr, 0, 0, dpr, 0, 0); small = W < 560;
     layout(); ctr = ctrT.slice(); kick();
@@ -137,9 +108,9 @@
     nodes.forEach(function (n) { if (n.a > 0.02) proj.push({ n: n, q: project(n.p) }); });
     proj.forEach(function (o) {
       var n = o.n; if (!n.parent) return;
-      var q2 = project(n.parent.p), mx = (q2.x + o.q.x) / 2;
+      var q2 = project(n.parent.p);
       g.strokeStyle = 'rgba(150,172,210,' + (0.55 * n.a) + ')'; g.lineWidth = n.level === 1 ? 1.6 : 1.2;
-      g.beginPath(); g.moveTo(q2.x, q2.y); g.bezierCurveTo(mx, q2.y, mx, o.q.y, o.q.x, o.q.y); g.stroke();
+      g.beginPath(); g.moveTo(q2.x, q2.y); g.lineTo(o.q.x, o.q.y); g.stroke();
     });
     proj.sort(function (a, b) { return b.q.z - a.q.z; });
     proj.forEach(function (o) {
@@ -152,12 +123,14 @@
       if (hot) { g.strokeStyle = '#ffffff'; g.lineWidth = 2; g.beginPath(); g.arc(q.x, q.y, r + 7, 0, 7); g.stroke(); }
       // Labels sit to the right of the node on a dark background, with text color #eef3fa (contrast above 12)
       var t = txt(n), th = n.level === 0 ? 24 : 21; g.font = font(n);
-      var tw = g.measureText(t).width + 14, lx = q.x + r + 6, ly = q.y - th / 2;
+      var tw = g.measureText(t).width + 14, dx = q.x - W / 2, dy = q.y - H / 2;
+      var lx = dx >= 0 ? q.x + r + 6 : q.x - r - tw - 6, ly = Math.max(3, Math.min(H - th - 3, q.y + (dy > 0 ? r + 5 : -r - th - 5)));
+      lx = Math.max(3, Math.min(W - tw - 3, lx));
       rr(lx, ly, tw, th, 5); g.fillStyle = 'rgba(9,15,28,0.92)'; g.fill();
       g.strokeStyle = hot ? '#ffffff' : COL[n.level]; g.lineWidth = hot ? 1.6 : 1; g.stroke();
-      g.fillStyle = '#eef3fa'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(t, lx + 7, q.y + 0.5);
+      g.fillStyle = '#eef3fa'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(t, lx + 7, ly + th / 2);
       g.globalAlpha = 1;
-      o.box = [q.x - r - 4, Math.min(q.y - r - 4, ly), lx + tw, Math.max(q.y + r + 4, ly + th)];
+      o.box = [Math.min(q.x - r - 4, lx), Math.min(q.y - r - 4, ly), Math.max(q.x + r + 4, lx + tw), Math.max(q.y + r + 4, ly + th)];
     });
   }
   // ---------- Animation (runs on demand) ----------
