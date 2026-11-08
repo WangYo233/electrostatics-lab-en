@@ -43,7 +43,7 @@
     </aside>
     <main class="view">
       <div id="stage" class="stage">
-        <canvas id="gl" aria-label="3D model. Drag to rotate the view and scroll to zoom."></canvas>
+        <canvas id="gl" aria-label="3D model. Drag to rotate; scroll to zoom. Right-click a charge, probe, or geometry background to adjust appearance and animation." title="Right-click a charge, probe, or geometry background to open its settings"></canvas>
         <div class="grain" aria-hidden="true"></div>
         <div id="labels" class="labels" aria-hidden="true"></div>
         <div class="tools" role="toolbar" aria-label="View tools">
@@ -53,9 +53,9 @@
           <button type="button" id="btnZout" title="Zoom out" aria-label="Zoom out">－</button>
           <button type="button" id="btnFull" title="Toggle full screen" aria-label="Toggle full screen">⛶</button>
         </div>
-        <div class="caption" id="caption" aria-live="polite" hidden></div>
         <div class="stagebar"><div class="sb-mid"><span>Show</span></div><div class="sb-layers" id="sbLayers"></div><button type="button" id="btnTheme" class="theme-toggle" title="Switch canvas theme" aria-label="Switch canvas theme">◐</button></div>
       </div>
+      <div class="caption" id="caption" aria-live="polite" hidden></div>
     </main>
     <aside class="ex-right">
       <div class="ex-only-s" id="exMain"></div>
