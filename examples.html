@@ -29,7 +29,6 @@
     <div class="filemenu">
       <a class="home-btn" href="index.html" title="Home" aria-label="Home"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 9.5 10 3.5l7 6M5 8v8.5h3.6v-5h2.8v5H15V8"/></svg><span>Home</span></a>
       <a class="present-btn" href="lab.html?m=1">Model inquiry</a>
-      <button type="button" id="btnTheme" class="ico" title="Switch canvas theme" aria-label="Switch canvas theme">◐</button>
     </div>
   </header>
   <div class="ex-work">
@@ -47,9 +46,15 @@
         <canvas id="gl" aria-label="3D model. Drag to rotate the view and scroll to zoom."></canvas>
         <div class="grain" aria-hidden="true"></div>
         <div id="labels" class="labels" aria-hidden="true"></div>
-        <div class="tools" role="toolbar"><button type="button" id="btnHome" title="Reset to standard view" aria-label="Reset to standard view">⌂</button></div>
+        <div class="tools" role="toolbar" aria-label="View tools">
+          <button type="button" id="btnHome" title="Reset to standard view" aria-label="Reset to standard view">⌂</button>
+          <button type="button" id="btnTop" title="Top view" aria-label="Top view">⊤</button>
+          <button type="button" id="btnZin" title="Zoom in" aria-label="Zoom in">＋</button>
+          <button type="button" id="btnZout" title="Zoom out" aria-label="Zoom out">－</button>
+          <button type="button" id="btnFull" title="Toggle full screen" aria-label="Toggle full screen">⛶</button>
+        </div>
         <div class="caption" id="caption" aria-live="polite" hidden></div>
-        <div class="stagebar"><div class="sb-mid"><span>Show</span></div><div class="sb-layers" id="sbLayers"></div></div>
+        <div class="stagebar"><div class="sb-mid"><span>Show</span></div><div class="sb-layers" id="sbLayers"></div><button type="button" id="btnTheme" class="theme-toggle" title="Switch canvas theme" aria-label="Switch canvas theme">◐</button></div>
       </div>
     </main>
     <aside class="ex-right">

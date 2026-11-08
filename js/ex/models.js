@@ -38,6 +38,7 @@
     if (id === 3) return [{ key: 'disk', model: 3, kind: 'disk', name: 'Like charges on a disk', desc: 'N charges equally spaced on a circle, or one charge placed at the center', make: () => ({ disk: { N: 6, R: 2, q: 1, center: false, qc: 1 } }) }];
     return [];
   }
+  GROUPS.push(['IV. Problems', []]);
   X.catalog = () => GROUPS.map(([title, ids]) => ({ title, labs: ids.map(id => Object.assign({ id }, X.LABS[id], { items: items(id) })) }));
   X.itemKey = function (pb) {
     const k = X.kindOf(pb);

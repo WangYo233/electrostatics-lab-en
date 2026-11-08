@@ -32,6 +32,7 @@
   // Vertical axes are grouped by unit: curves with the same unit share one axis; different units go on the left and right sides (a third unit adds another axis further out).
   // Ticks are 1, 2, 5 × 10ⁿ; when every axis includes 0, 0 is aligned with a grid line. When curves coincide, the one drawn later is dashed and the one drawn first is thickened, so both stay visible.
   const UNIT = { V: 'kQ/L', U: 'kQ²/L', E: 'kQ/L²' };
+  let curveZoom = 1;
   const unitOf = (s, d) => s.unit || d.yUnit || UNIT[String(s.name).trim()[0]] || ((d.note || '').match(/vertical axis is[^/]*\/\s*\(([^)]+)\)/) || [])[1] || '';
   const niceStep = raw => {
     if (!(raw > 0) || !isFinite(raw)) return 1;
@@ -67,13 +68,15 @@
     const box = U.$('#curveBox'), d = c && c.m.curves ? c.m.curves(c) : null;
     box.hidden = !d;
     if (!d || document.body.dataset.mode !== 'analyze' || !box.open) return;
-    const cv = U.$('#curves'), dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+    const cv = U.$('#curves'), dpr = window.devicePixelRatio || 1;
+    cv.style.height = (document.fullscreenElement === U.$('#curveBox') ? '74vh' : Math.round(210 * curveZoom) + 'px');
+    const W = cv.clientWidth, H = cv.clientHeight;
     if (!W || !H) return;
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     const g = cv.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, H);
-    const FONT = '11px "Times New Roman", "Microsoft YaHei", sans-serif', INK = '#3a4452', GRID = '#e3e8ef', AXIS = '#9aa6b2';
+    const dark = EL.theme === 'dark', FONT = (document.fullscreenElement === U.$('#curveBox') ? '14px' : '11px') + ' "Times New Roman", "Microsoft YaHei", sans-serif', INK = dark ? '#e3eaf3' : '#263446', GRID = dark ? '#48576c' : '#d2d9e2', AXIS = dark ? '#9baabd' : '#7d8998';
     g.font = FONT;
     const series = d.series.map((s, i) => Object.assign({}, s, { i, col: U.rgb(s.color), unit: unitOf(s, d) }));
 
@@ -272,6 +275,12 @@
     return ok;
   };
 
+  if (typeof document !== 'undefined' && U.$('#curveZoomIn')) U.$('#curveZoomIn').addEventListener('click', () => { curveZoom = Math.min(2.8, curveZoom + 0.25); if (A.c) A.renderCurves(A.c); });
+  if (typeof document !== 'undefined' && U.$('#curveZoomOut')) U.$('#curveZoomOut').addEventListener('click', () => { curveZoom = Math.max(1, curveZoom - 0.25); if (A.c) A.renderCurves(A.c); });
+  if (typeof document !== 'undefined' && U.$('#curveFull')) {
+    U.$('#curveFull').addEventListener('click', () => { const el = U.$('#curveBox'); document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen && el.requestFullscreen(); });
+    document.addEventListener('fullscreenchange', () => { if (A.c) A.renderCurves(A.c); });
+  }
   A.renderRecords = function () {
     const recs = loadRecs(), save = () => saveRecs(recs);
     // The textarea content must be written to the value property (setAttribute('value') has no effect on a textarea)

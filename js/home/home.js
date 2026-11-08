@@ -1,11 +1,12 @@
 'use strict';
 // Home page: grouped model cards and the dipole animation in the hero
 (function () {
-  // Three categories (in learning order): I. Basic models; II. Symmetric models (with worked problems); III. Extensions and authoring. The model drop-down in the lab (CATS in js/app/main.js) uses the same categories
+  // Worked problems and problem authoring have a dedicated fourth category.
   var groups = [
     ['I. Basic models', [[1, '01', 'Point charges and the dipole'], [2, '02', 'Paths and energy']]],
-    ['II. Symmetric models', [[4, '03', 'Regular tetrahedron'], [6, '04', 'Cube'], [5, '05', 'Regular octahedron'], ['ex', 'Examples', 'Worked problems']]],
-    ['III. Extensions and authoring', [[7, '06', 'Model inquiry'], [8, 'Ext. 1', 'Analytic-field models'], [3, 'Ext. 2', 'Charged disk (snowflake problem)'], ['add', 'Add', 'Add problems']]]
+    ['II. Symmetric models', [[4, '03', 'Regular tetrahedron'], [6, '04', 'Cube'], [5, '05', 'Regular octahedron']]],
+    ['III. Extensions and authoring', [[7, '06', 'Model inquiry'], [8, 'Ext. 1', 'Analytic-field models'], [3, 'Ext. 2', 'Charged disk (snowflake problem)']]],
+    ['IV. Problems', [['ex', 'Worked', 'Worked problems'], ['add', 'Add', 'Add problems']]]
   ];
   function href(id) { return id === 'ex' ? 'examples.html' : id === 'add' ? 'examples.html?mode=add' : 'lab.html?m=' + id; }
 

@@ -37,8 +37,8 @@
     </nav>
     <div class="filemenu">
       <div class="hist" role="group" aria-label="Undo and redo">
-        <button type="button" id="btnUndo" title="Undo the last action (Ctrl+Z)" aria-keyshortcuts="Control+Z" disabled><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 5 3.5 9l4 4M4 9h8a4.5 4.5 0 0 1 0 9H9"/></svg><span>Undo</span></button>
-        <button type="button" id="btnRedo" title="Redo the undone action (Ctrl+Y or Ctrl+Shift+Z)" aria-keyshortcuts="Control+Y Control+Shift+Z" disabled><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 5l4 4-4 4M16 9H8a4.5 4.5 0 0 0 0 9h3"/></svg><span>Redo</span></button>
+        <button type="button" id="btnUndo" title="Undo the last action (Ctrl+Z)" aria-label="Undo" aria-keyshortcuts="Control+Z" disabled><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 5 3.5 9l4 4M4 9h8a4.5 4.5 0 0 1 0 9H9"/></svg></button>
+        <button type="button" id="btnRedo" title="Redo the undone action (Ctrl+Y or Ctrl+Shift+Z)" aria-label="Redo" aria-keyshortcuts="Control+Y Control+Shift+Z" disabled><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 5l4 4-4 4M16 9H8a4.5 4.5 0 0 0 0 9h3"/></svg></button>
       </div>
       <details class="menu">
         <summary title="Save a draft or export files">File ▾</summary>
@@ -46,7 +46,6 @@
           <button type="button" id="btnSave" role="menuitem">Save draft <kbd>This browser</kbd></button>
           <button type="button" id="btnLoad" role="menuitem">Load draft</button>
           <hr>
-          <button type="button" id="btnExport" role="menuitem">Export JSON file <kbd>Across devices</kbd></button>
           <button type="button" id="btnImport" role="menuitem">Import JSON file</button>
           <button type="button" id="btnPng" role="menuitem">Save canvas image <kbd>PNG</kbd></button>
           <hr>
@@ -144,7 +143,7 @@
         </details>
         <details class="acc" id="deriveBox" open hidden><summary>Synthesis derivation</summary><div id="derive"></div></details>
         <details class="acc" id="geoBox"><summary>Geometry and resolution</summary><div id="geo"></div></details>
-        <details class="acc" id="curveBox" open><summary>Linked curves</summary><canvas id="curves"></canvas><div id="curveLegend" class="clegend"></div></details>
+        <details class="acc" id="curveBox" open><summary>Linked curves</summary><div class="curve-tools"><button type="button" id="curveZoomOut" title="Zoom out" aria-label="Zoom out">−</button><button type="button" id="curveZoomIn" title="Zoom in" aria-label="Zoom in">＋</button><button type="button" id="curveFull" title="Full-screen curve" aria-label="Full-screen curve">⛶</button></div><canvas id="curves"></canvas><div id="curveLegend" class="clegend"></div></details>
         <details class="acc" id="compBox"><summary>Free synthesis</summary><div id="comp"></div></details>
       </section>
       <section class="insp" data-for="record">

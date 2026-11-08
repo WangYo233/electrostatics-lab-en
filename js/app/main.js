@@ -308,7 +308,7 @@
   };
 
   // The same three categories as the home page (in learning order)
-  A.CATS = [['I. Basic models', [1, 2]], ['II. Symmetric models', [4, 6, 5]], ['III. Extensions and authoring', [7, 8, 3]]];
+  A.CATS = [['I. Basic models', [1, 2]], ['II. Symmetric models', [4, 6, 5]], ['III. Extensions and authoring', [7, 8, 3]], ['IV. Problems', []]];
   A.catOf = m => { const c = A.CATS.find(([, ids]) => ids.includes(m.id)); return c ? c[0].replace(/^[IVX]+\.\s*/, '') : ''; };
   A.boot = function () {
     const id = new URLSearchParams(location.search).get('m') || '1', m = EL.model(id) || EL.model(1);
@@ -316,7 +316,7 @@
     U.$('#labTitle').textContent = m.code + ' ' + m.title;
     const CATS = A.CATS;
     // Same as the home page: "Worked problems" is at the end of "II. Symmetric models" and "Add problems" at the end of "III. Extensions and authoring"; selecting one jumps to the worked-problems page
-    const LINKS = { 1: [['link:ex', 'Worked problems']], 2: [['link:add', 'Add problems']] }, HREF = { 'link:ex': 'examples.html', 'link:add': 'examples.html?mode=add' };
+    const LINKS = { 3: [['link:ex', 'Worked problems'], ['link:add', 'Add problems']] }, HREF = { 'link:ex': 'examples.html', 'link:add': 'examples.html?mode=add' };
     U.$('#modelSel').replaceChildren(...CATS.map(([n, ids], g) => h('optgroup', { label: n }, ids.map(i => EL.model(i)).filter(Boolean).map(x => h('option', { value: x.id, selected: x === m }, x.code + ' ' + x.title)).concat((LINKS[g] || []).map(([v, t]) => h('option', { value: v }, t))))));
     U.$('#modelSel').addEventListener('change', e => { const v = e.target.value; if (HREF[v]) location.href = HREF[v]; else location.search = '?m=' + v; });
     A.init(m);
@@ -386,7 +386,6 @@
     });
     on('#btnSave', () => { U.store.set(draftKey(), A.snapshot()) ? U.toast('Draft saved in this browser.') : (U.download('draft_' + A.st.model.code + '.json', A.snapshot()), U.toast('Browser storage is unavailable. Downloaded a JSON backup file instead.')); });
     on('#btnLoad', () => { const d = U.store.get(draftKey(), null); if (!d) return U.toast('This browser has no draft for this model.'); try { A.restore(d); U.toast('Draft loaded.'); } catch (e) { U.toast(e.message); } });
-    on('#btnExport', () => U.download('draft_' + A.st.model.code + '_' + A.st.model.title + '.json', A.snapshot(), 'application/json'));
     on('#btnImport', () => U.$('#importFile').click());
     U.$('#importFile').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => { try { A.restore(t); U.toast('File imported.'); } catch (er) { U.toast('Import failed: ' + er.message); } }); e.target.value = ''; });
     on('#btnPng', () => { const a = h('a', { href: A.r.snapshot(), download: 'canvas_' + A.st.model.code + '.png' }); document.body.append(a); a.click(); a.remove(); });

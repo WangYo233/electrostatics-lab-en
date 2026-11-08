@@ -5,7 +5,7 @@
   const U = EL.U, h = U.h, K = EL.UI, X = EL.EX, W = X.W, V = EL.V;
   const STEPS = ['Choose a model', 'Place charges', 'Select key points', 'Set questions', 'Generate and publish'];
   const T = X.T = { step: 0, d: null };
-  const blank = key => X.applyItem({ id: 'my-' + Date.now().toString(36), title: 'New problem' }, X.itemOf(key || 'tpl:tetra:4'));
+  const blank = key => X.applyItem({ id: 'my-' + Date.now().toString(36), title: 'New problem' }, X.itemOf(key || 'tpl:pair:1'));
   const freeName = d => { const used = new Set(X.resolve(d).g.labels.concat(Object.keys(d.pts))); return 'PMNOEFGHKSTUW'.split('').find(c => !used.has(c)) || 'X' + Object.keys(d.pts).length; };
   const PRESET = {
     alt: ['Alternating signs', ls => Object.fromEntries(ls.map((n, i) => [n, i % 2 ? 1 : -1]))],
