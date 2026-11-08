@@ -11,6 +11,7 @@
     const b = U.$('.modes button[data-mode="' + m + '"]'), ink = U.$('.mode-ink');
     if (b) { ink.style.width = b.offsetWidth + 'px'; ink.style.transform = 'translateX(' + (b.offsetLeft - 3) + 'px)'; }
     document.title = (m === 'teacher' ? 'Add problems' : 'Worked problems') + ' · Electrostatics Lab';
+    if (m === 'teacher' && X.stopPath) X.stopPath();
     if (m === 'teacher') { if (!X.T.d) X.T.start(); else X.T.render(); }
     else { U.$('#caption').hidden = true; if (X.S.pb) { X.focus(null); X.renderProblem(); } else { X.renderProblem(); W.r.setScene({}); } }
     requestAnimationFrame(() => W.r.draw());
