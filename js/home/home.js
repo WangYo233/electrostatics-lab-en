@@ -5,7 +5,7 @@
   var groups = [
     ['I. Basic models', [[1, '01', 'Point charges and the dipole'], [2, '02', 'Paths and energy']]],
     ['II. Symmetric models', [[4, '03', 'Regular tetrahedron'], [6, '04', 'Cube'], [5, '05', 'Regular octahedron']]],
-    ['III. Extensions and authoring', [[7, '06', 'Model inquiry'], [8, 'Ext. 1', 'Analytic-field models'], [3, 'Ext. 2', 'Charged disk (snowflake problem)']]],
+    ['III. Extensions and authoring', [[7, '06', 'Model inquiry'], [8, 'Ext. 1', 'Analytic-field models'], [3, 'Ext. 2', 'Charged disk']]],
     ['IV. Problems', [['ex', 'Worked', 'Worked problems'], ['add', 'Add', 'Add problems']]]
   ];
   function href(id) { return id === 'ex' ? 'examples.html' : id === 'add' ? 'examples.html?mode=add' : 'lab.html?m=' + id; }

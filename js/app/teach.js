@@ -40,7 +40,7 @@
     }
     const last = cs.i === cs.n - 1;
     kids.push(h('div.cap-nav', null, K.btn('‹', nav.prev, 'mini', 'Previous step'),
-      h('span.cap-dots', null, cs.steps.map((_, i) => h('i', { class: i === cs.i ? 'on' : i < cs.i ? 'done' : '' }))),
+      h('span.cap-progress', null, 'Step ' + (cs.i + 1) + ' / ' + cs.n),
       nav.stop ? K.btn('Exit guide', nav.stop, 'mini') : null, K.btn(last ? 'Finish synthesis' : 'Next step ›', nav.next, 'mini primary')));
     return kids;
   };

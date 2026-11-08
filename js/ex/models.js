@@ -17,7 +17,7 @@
   X.LABS = {
     1: { code: '01', title: 'Point charges and dipole' }, 2: { code: '02', title: 'Paths and energy' },
     4: { code: '03', title: 'Regular tetrahedron' }, 6: { code: '04', title: 'Cube' }, 5: { code: '05', title: 'Regular octahedron' },
-    7: { code: '06', title: 'Free exploration' }, 8: { code: 'Ext. 1', title: 'Analytic field models' }, 3: { code: 'Ext. 2', title: 'Charges on a disk (snowflake problem)' }
+    7: { code: '06', title: 'Free exploration' }, 8: { code: 'Ext. 1', title: 'Analytic field models' }, 3: { code: 'Ext. 2', title: 'Charges on a disk' }
   };
   const GROUPS = [['I. Basic models', [1, 2]], ['II. Symmetric models', [4, 6, 5]], ['III. Extensions and authoring', [7, 8, 3]]];
   X.UNITS = { a: { E: 'kQ/a²', V: 'kQ/a', W: 'kQq/a', L: 'a' }, L: { E: 'kQ/L²', V: 'kQ/L', W: 'kQq/L', U: 'kQ²/L', L: 'L' }, none: { E: '', V: '', W: '', L: 'L' } };

@@ -1,5 +1,5 @@
 'use strict';
-// 03 Disk charges: total interaction energy and comparison of candidate configurations (snowflake problem)
+// 03 Disk charges: total interaction energy and comparison of candidate configurations
 (function (EL) {
   const V = EL.V, MH = EL.MH;
   const Uring = (n, q, R) => { if (n < 2) return 0; let s = 0; for (let m = 1; m < n; m++) s += 1 / Math.sin(Math.PI * m / n); return n * q * q * s / (4 * R); };
@@ -23,7 +23,7 @@
   }
 
   EL.defModel({
-    id: 3, code: 'Ext. 2', order: 8, ext: true, file: '03', title: 'Charges on a disk (snowflake problem)', short: 'Total interaction energy, the center configuration, and local perturbations',
+    id: 3, code: 'Ext. 2', order: 8, ext: true, file: '03', title: 'Charges on a disk', short: 'Total interaction energy, the center configuration, and local perturbations',
     view: '2d', lock2d: false, R: 6, rMin: 0.2, perCharge: false,
     params: [
       { key: 'N', label: 'Total number of point charges N', min: 2, max: 12, step: 1, val: 6 },

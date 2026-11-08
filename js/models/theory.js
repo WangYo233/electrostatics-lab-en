@@ -61,7 +61,7 @@
     record: 'Record the source configuration, the values of s at the start and end, the test charge q₀, the potentials at the start and end, ΔU and the work done by the electric force, and state whether the path passes through an excluded neighborhood.'
   };
   T[3] = {
-    intro: 'Place $N$ point charges of the same sign inside a disk of radius $R$, and compare the total interaction energy of several candidate configurations. This is called the snowflake problem. For small $N$, spacing the charges evenly on the circle gives the lowest energy. For larger $N$, moving one charge to the center can lower the energy instead.',
+    intro: 'Place $N$ point charges of the same sign inside a disk of radius $R$, and compare the total interaction energy of several candidate configurations. For small $N$, spacing the charges evenly on the circle gives lower energy. For larger $N$, moving one charge to the center can also lower the total energy.',
     formulas: [
       f(R`U_{\rm total}=\sum_{i<j}\frac{kq_iq_j}{R_{ij}},\qquad N_{\rm pairs}=\frac{N(N-1)}{2}`, '$U_{\\rm total}$ is the interaction energy of the whole charge system, and $R_{ij}$ is the distance between charges $i$ and $j$. The sum runs over $i<j$ only, so each pair is counted once, and there are $N(N-1)/2$ pairs.'),
       f(R`U_{\rm ring}(N)=\frac{Nkq^2}{4R}\sum_{m=1}^{N-1}\csc\frac{\pi m}{N}`, 'This is the total interaction energy of $N$ point charges, each of charge $q$, spaced evenly on a circle of radius $R$. Here $\\csc x=1/\\sin x$, and the $m$th term of the sum corresponds to pairs of charges separated by $m$ positions around the circle.'),
