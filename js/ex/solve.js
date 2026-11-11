@@ -169,8 +169,8 @@
     if (!o.ok) return [{ t: o.err }];
     if (o.expl) return o.expl;
     if (q.t === 'E' || q.t === 'Ezero' || q.t === 'angle') {
-      for (const s of o.plan) if (s.id !== 'list' && s.id !== 'group') L.push({ t: s.title + ': ' + s.text, tex: s.tex });
-      if (q.t === 'angle') L.push({ t: 'The dot product of the net field and the displacement vector between ' + q.a + ' and ' + q.b + ' gives the angle, ' + o.answer + '.' });
+      for (const s of o.plan) if (s.id !== 'list' && s.id !== 'group') L.push({ t: s.title + ': ' + s.text, tex: s.tex, rows: s.rows });
+      if (q.t === 'angle') L.push({ t: 'For direction ' + q.a + '→' + q.b + ', let u be its displacement vector. The scalar product gives the angle after the resultant has been derived: ' + o.answer + '.', tex: String.raw`\vec u=\vec r_{${q.b}}-\vec r_{${q.a}},\qquad\cos\alpha=\frac{\vec E\cdot\vec u}{|\vec E||\vec u|}=${numTex(Math.cos(o.value * Math.PI / 180))},\qquad\alpha=${f4(o.value)}^\circ` });
     } else if (q.t === 'V') {
       L.push({ t: 'Potential is a scalar. The potential at ' + q.at + ' is the algebraic sum of the potentials that each source produces there alone. Positive sources contribute positively and negative sources negatively.', tex:String.raw`\varphi_{${q.at}}=\sum_i\frac{kq_i}{r_i}=` + o.terms.map(x => (x.q < 0 ? '-' : '+') + numTex(Math.abs(x.v))).join('').replace(/^\+/, '') + '=' + numTex(o.value) });
     } else if (q.t === 'Vcmp') {

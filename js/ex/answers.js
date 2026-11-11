@@ -127,7 +127,7 @@
         if (m < 1e-9) return { q, ok: false, err: 'The field at ' + q.at + ' is zero and has no direction, so the angle is meaningless.' };
         if (V.len(d) < 1e-9) return { q, ok: false, err: q.a + ' and ' + q.b + ' are the same point, so they do not define a line and the angle is meaningless.' };
         const th = VA.ang(s.E, d); o.value = th; o.answer = (Math.round(th * 10) / 10) + '°'; o.options = VA.angOpts(th);
-        o.expl = [{ t: e.t, tex: e.tex }, { t: 'The field at ' + q.at + ' points ' + o.dir + '. The dot product of the field and the displacement vector between ' + q.a + ' and ' + q.b + ' gives the angle, ' + o.answer + '.' }];
+        o.expl = [{ t: e.t, tex: e.tex }, { t: 'The field at ' + q.at + ' points ' + o.dir + '. The dot product of the field and the displacement vector between ' + q.a + ' and ' + q.b + ' gives the angle, ' + o.answer + '.', tex: R_`\vec u=\vec r_{${q.b}}-\vec r_{${q.a}},\qquad\cos\alpha=\frac{\vec E\cdot\vec u}{|\vec E||\vec u|}=${TX(Math.cos(o.value * Math.PI / 180))},\qquad\alpha=${TX(o.value)}^\circ` }];
       }
       return o;
     }

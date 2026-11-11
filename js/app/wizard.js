@@ -94,6 +94,7 @@
         h('div.row.wrap', null, K.select('', labels.map(x => [x, x]), g.angle[0], v => { g.angle[0] = v; A.update(); A.renderGeo(); }), h('span', null, 'and'),
           K.select('', labels.map(x => [x, x]), g.angle[1], v => { g.angle[1] = v; A.update(); A.renderGeo(); })),
         h('p', { html: U.rich('∠' + a.label + n + b.label + ' = ' + U.fmt(geoAng, 4) + '°. The angle between E_' + a.label + ' and E_' + b.label + ' is ' + U.fmt(fieldAng, 4) + '°.') }),
+        h('div.formula', { html: EL.texBlock(String.raw`\cos\angle ${a.label}${n}${b.label}=\frac{r_{${a.label}}^2+r_{${b.label}}^2-|${a.label}${b.label}|^2}{2r_{${a.label}}r_{${b.label}}}=${VA.texV((V.dist(P,a.p)**2+V.dist(P,b.p)**2-V.dist(a.p,b.p)**2)/(2*V.dist(P,a.p)*V.dist(P,b.p)))}`) }),
         K.tip('For sources of the same sign, the angle between the component fields equals the angle between the lines. For opposite signs, it is the supplement.')));
     }
     // Symmetry relations

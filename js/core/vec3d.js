@@ -166,7 +166,7 @@
       else if (g.type === 'plane') steps.push(VA.planeStep(g, d, hide), VA.chainStep(g, d, hide, dir, unit));
       else if (g.type === 'rest') steps.push(VA.chainStep(g, d, hide, dir, unit));
     }
-    if (groups.length > 1) steps.push(VA.combineStep(d, hide, dir, unit));
+    if (groups.length > 1) steps.push(...(VA.tetraSteps(d, hide) || [VA.combineStep(d, hide, dir, unit)]));
     steps.push(VA.checkStep(d, unit));
     steps.d = d;
     return steps;
@@ -176,7 +176,7 @@
   VA.angleStep = function (g, d) {
     const [a, b] = g.items, pn = d.pn, ab = V.dist(a.p, b.p), cg = (a.r * a.r + b.r * b.r - ab * ab) / (2 * a.r * b.r), geo = deg(Math.acos(U.clamp(cg, -1, 1)));
     const same = Math.sign(a.q) === Math.sign(b.q), th = same ? geo : 180 - geo;
-    const geoName = '∠' + a.label + pn + b.label, inl = geo > 0.5 && geo < 179.5;
+    const geoName = '∠' + a.label + pn + b.label, inl = V.len(V.cross(a.d, b.d)) > 1e-10 * a.r * b.r;
     // Three collinear points: the two component fields lie on one line, so the angle follows directly from the directions (no law of cosines)
     if (!inl) {
       const between = geo >= 90, par = th < 90;
@@ -189,8 +189,7 @@
       text: 'In triangle ' + a.label + pn + b.label + ', the law of cosines gives ' + geoName + '. ' +
         (same ? 'The two sources have the same sign, so the angle between ' + a.n + ' and ' + b.n + ' equals ' + geoName + '.' : 'The two sources have opposite signs, so the angle between ' + a.n + ' and ' + b.n + ' is the supplement of ' + geoName + '.'),
       tex: R`\cos\angle ${a.label}${pn}${b.label}=\frac{r_{${a.label}}^2+r_{${b.label}}^2-|${a.label}${b.label}|^2}{2r_{${a.label}}r_{${b.label}}}=${VA.texV(cg)}\quad\theta=${same ? '' : '180^\\circ-'}\angle ${a.label}${pn}${b.label}=${f4(th)}^\circ`,
-      ask: geo > 0.5 && geo < 179.5 ? { q: 'What is the angle between ' + a.n + ' and ' + b.n + ', approximately?', options: VA.angOpts(th, [geo]), a: r1(th) + '°', why: same ? 'The two sources have the same sign, so the angle between the component fields equals ' + geoName + '.' : 'The two sources have opposite signs, so the angle between the component fields is 180° − ' + geoName + '.' } : null,
-      view: geo > 0.5 && geo < 179.5 ? V.cross(V.sub(a.p, d.P), V.sub(b.p, d.P)) : null };
+      view: inl ? V.cross(V.sub(a.p, d.P), V.sub(b.p, d.P)) : null };
   };
   // ---- Similar-triangle method: two sources at equal distance from the field point, with charges of equal magnitude, not collinear with the field point ----
   // Opposite signs: E₊ ∥ (P − positive source), E₋ ∥ (negative source − P). The tip-to-tail vector triangle is a scaled copy of triangle "positive source, P, negative source", with ratio E/r,
@@ -230,7 +229,7 @@
       text = 'Let ' + mn + ' be the midpoint of ' + s.a.label + s.b.label + '. The two component fields have magnitude E₀, so the parallelogram with them as adjacent sides is a rhombus, and its diagonal ' + nm + ' bisects the angle between them. ' +
         'The triangle formed by half of the rhombus (sides ' + s.a.n + ' and ' + nm + '/2) is similar to triangle ' + tri + ', with similarity ratio E₀/r. ' +
         'Corresponding angles of similar triangles are equal: the angle between ' + nm + ' and ' + s.a.n + ' equals ∠' + s.a.label + pn + mn + ', and the angle θ between the two component fields equals ' + apexN + '.';
-      tex = R`\cos\angle ${s.a.label}${pn}${mn}=\frac{|${pn}${mn}|}{r}=${VA.texV(s.pm / s.r)}\quad\theta=\angle ${s.a.label}${pn}${s.b.label}=${f4(s.th)}^\circ`;
+      tex = R`|${pn}${mn}|=\sqrt{r^2-(|${s.a.label}${s.b.label}|/2)^2}=${VA.texV(s.pm)}\qquad\cos\angle ${s.a.label}${pn}${mn}=\frac{|${pn}${mn}|}{r}=${VA.texV(s.pm / s.r)}\quad\theta=\angle ${s.a.label}${pn}${s.b.label}=${f4(s.th)}^\circ`;
       ask = { q: 'In which direction does ' + nm + ' point?', options: [right, toP ? 'from ' + pn + ' to ' + mn : 'from ' + mn + ' to ' + pn, 'from ' + s.a.label + ' to ' + s.b.label].sort(), a: right,
         why: 'The diagonal ' + nm + ' of the rhombus corresponds to side ' + mn + pn + ' of triangle ' + tri + '. Both sources are ' + (toP ? 'positive, so ' : 'negative, so ') + nm + ' points ' + right + '.' };
     }
@@ -258,59 +257,72 @@
       tex: col && !zero ? R`|${g.tex}|=${para ? 'E_1+E_2' : '|E_1-E_2|'}=${VA.texV(V.len(g.S))}` : eq ? R`|${g.tex}|=2E\cos\frac{\theta}{2}=${VA.texV(V.len(g.S))}` : R`|${g.tex}|=\sqrt{E_1^2+E_2^2+2E_1E_2\cos\theta}=${VA.texV(V.len(g.S))}` };
   };
   VA.planeStep = function (g, d, hide) {
-    const lb = g.items.map(x => x.label).join(''), pn = d.pn, angs = [];
-    for (let i = 0; i < g.items.length; i++) for (let j = i + 1; j < g.items.length; j++) angs.push('∠' + g.items[i].label + pn + g.items[j].label + ' is ' + r1(VA.ang(V.sub(g.items[i].p, d.P), V.sub(g.items[j].p, d.P))) + '°');
+    const lb = g.items.map(x => x.label).join(''), pn = d.pn;
     const ns = g.items.map(x => x.n).join(', ');
     return { id: 'plane', g, title: 'Check that these component fields are coplanar', hide, view: g.n,
-      text: pn + ' and ' + g.items.map(x => x.label).join(', ') + ' lie in one plane, so ' + ns + ' all lie in that plane. Viewed face-on, ' + angs.join('; ') + '.',
+      text: pn + ' and ' + g.items.map(x => x.label).join(', ') + ' lie in one plane, so ' + ns + ' all lie in that plane. Next derive the vector sum from distances; no angle needs to be estimated from the view.',
       ask: { q: 'In which plane do ' + ns + ' lie?', options: ['Plane ' + lb + ' (containing ' + pn + ')', 'A plane perpendicular to it', 'They are not coplanar'], a: 'Plane ' + lb + ' (containing ' + pn + ')', why: pn + ' and ' + g.items.map(x => x.label).join(', ') + ' are coplanar, and each component field lies along the line from ' + pn + ' to its source, so all of them lie in that plane.' } };
   };
-  VA.chainStep = function (g, d, hide, dir, unit) {
-    const zero = V.len(g.S) < 1e-12, D = zero ? null : dir(g.S);
-    return { id: 'chainSum', g, title: 'Find ' + g.name + ' by tip-to-tail addition', hide, view: g.n || null,
-      text: 'Place ' + g.items.map(x => x.n).join(', ') + ' tip to tail. The directed segment from the start of the first vector to the end of the last represents ' + g.name + '.' +
-        (zero ? ' The end of the last vector returns to the start, so ' + g.name + ' is zero.' : D ? ' ' + g.name + ' points ' + D + '.' : ''),
-      tex: R`|${g.tex}|=${VA.texV(V.len(g.S))}` };
+  // Law of cosines on source triangles, then distributivity of the scalar product.
+  const lengthProof = function (items, other) {
+    const pairs = [];
+    items.forEach((a, i) => (other || items.slice(i + 1)).forEach(b => {
+      const distance = V.dist(a.p, b.p), cosine = U.clamp((a.r * a.r + b.r * b.r - distance * distance) / (2 * a.r * b.r), -1, 1);
+      pairs.push({ a, b, distance, c: Math.sign(a.q * b.q) * a.mag * b.mag * cosine });
+    }));
+    const dot = pairs.reduce((sum, p) => sum + p.c, 0);
+    return { pairs, dot, squared: items.reduce((sum, a) => sum + a.mag * a.mag, 0) + 2 * dot };
   };
-  // Geometric reason why two partial sums are perpendicular: the two sources of one group are collinear with the field point (that partial sum lies along the line),
-  // and the other group lies in a plane through the field point; the line is perpendicular to the lines from the field point to both sources of the other group, hence perpendicular to that plane
-  const perpWhy = function (g1, g2, d) {
-    for (const [x, y] of [[g1, g2], [g2, g1]]) {
-      if (x.items.length !== 2 || y.items.length !== 2) continue;
-      const [a, b] = x.items, [c, e] = y.items, u = V.sub(b.p, a.p), pn = d.pn;
-      if (V.len(V.cross(V.sub(a.p, d.P), V.sub(b.p, d.P))) > 1e-6 * a.r * b.r) continue;
-      const pc = V.sub(c.p, d.P), pe = V.sub(e.p, d.P);
-      if (Math.abs(V.dot(u, pc)) > 1e-6 * V.len(u) * V.len(pc) || Math.abs(V.dot(u, pe)) > 1e-6 * V.len(u) * V.len(pe)) continue;
-      return x.name + ' lies along line ' + a.label + b.label + '. ' + pn + c.label + ' and ' + pn + e.label + ' are both perpendicular to ' + a.label + b.label + ', so ' + a.label + b.label + ' is perpendicular to plane ' + c.label + pn + e.label + '; ' +
-        y.name + ' lies in plane ' + c.label + pn + e.label + ', so ' + x.name + ' and ' + y.name + ' are perpendicular.';
-    }
-    return null;
+  const proofRows = p => [['Source pair', 'r_i', 'r_j', 'd_ij', 'C_ij']].concat(p.pairs.map(x => [x.a.label + ' / ' + x.b.label, VA.cell(x.a.r), VA.cell(x.b.r), VA.cell(x.distance), VA.cell(x.c)]));
+  const proofTex = R`d_{ij}=|S_iS_j|,\quad C_{ij}=\vec E_i\cdot\vec E_j=\frac{k^2q_iq_j(r_i^2+r_j^2-d_{ij}^2)}{2r_i^3r_j^3}`;
+  const proofText = 'Let r_i be the distance from the field point to source S_i, and d_ij the source separation. The law of cosines in the triangle formed by the two sources and the field point, with the charge signs, gives C_ij. The table lists the three lengths and C_ij in normalized platform units, k=1. Decimal readings are rounded; calculations use unrounded values.';
+  VA.chainStep = function (g, d, hide, dir, unit) {
+    const proof = lengthProof(g.items), D = V.len(g.S) > 1e-12 ? dir(g.S) : null;
+    return { id: 'chainSum', g, proof, title: 'Find from distances: ' + g.name, hide, view: g.n || null,
+      text: proofText + ' Place the component fields tip to tail. Expanding the squared vector sum determines its magnitude from lengths, without first finding a numerical angle.' + (D ? ' ' + g.name + ' points ' + D + '.' : ''), rows: proofRows(proof),
+      tex: proofTex + R`\qquad |${g.tex}|^2=\sum_i E_i^2+2\sum_{i<j}C_{ij}=${VA.texV(g.items.reduce((s, a) => s + a.mag * a.mag, 0))}+2(${VA.texV(proof.dot)})=${VA.texV(Math.max(0, proof.squared))}\qquad |${g.tex}|=${VA.texV(V.len(g.S))}` };
+  };
+
+  // This construction applies only when all six edges form a regular tetrahedron.
+  VA.tetraSteps = function (d, hide) {
+    if (d.parts.length !== 3 || d.groups.length !== 2) return null;
+    const pair = d.groups.find(g => g.type === 'pair'), single = d.groups.find(g => g.type === 'single');
+    if (!pair || !single) return null;
+    const [a, b] = pair.items, c = single.items[0], edge = a.r;
+    if (!d.parts.every(x => tol(x.q, a.q) && tol(x.r, edge)) || ![V.dist(a.p, b.p), V.dist(a.p, c.p), V.dist(b.p, c.p)].every(x => tol(x, edge))) return null;
+    const m = simInfo(pair, d), G = V.mul(V.add(V.add(a.p, b.p), c.p), 1 / 3), H = V.addS(d.P, V.sub(d.P, c.p), 0.5);
+    const used = new Set(d.named.map(x => x.n).concat(d.parts.map(x => x.label), [d.pn, m.mn]));
+    const name = (base, p) => {
+      const known = d.named.find(x => !d.parts.some(s => s.label === x.n) && x.n !== d.pn && V.dist(x.p, p) < 1e-9);
+      if (known) return known.n;
+      let n = base, i = 0; while (used.has(n)) n = base + (++i); used.add(n); return n;
+    };
+    const gn = name('G', G), hn = name('H', H), pn = d.pn, mn = m.mn, cn = c.label;
+    const tetra = { P: d.P, C: c.p, mid: m.mid, G, H, mn, gn, hn, edge };
+    const shared = { tetra, hide, view: V.cross(V.sub(m.mid, d.P), V.sub(c.p, d.P)) };
+    return [
+      { ...shared, id: 'tetraHeight', title: 'Derive the tetrahedron lengths first',
+        text: a.label + b.label + cn + pn + ' has six equal edges a, so it is a regular tetrahedron. ' + mn + ' is the midpoint of ' + a.label + b.label + ' and ' + gn + ' the base centroid. Each isosceles median is an altitude; the centroid divides a median in the ratio 2:1. Since ' + pn + ' is equidistant from the base vertices, its perpendicular foot is the base center ' + gn + '. Use Pythagoras for the height.',
+        tex: R`a=|${pn}${a.label}|=|${pn}${b.label}|=|${pn}${cn}|=|${a.label}${b.label}|=|${a.label}${cn}|=|${b.label}${cn}|\qquad |${pn}${mn}|=|${cn}${mn}|=\frac{\sqrt3}{2}a,\quad |${cn}${gn}|=\frac23|${cn}${mn}|=\frac{a}{\sqrt3}\qquad |${pn}${gn}|=\sqrt{a^2-|${cn}${gn}|^2}=\sqrt{\frac23}a` },
+      { ...shared, id: 'tetraSimilar', title: 'Construct a similar vector triangle',
+        text: 'Extend ' + cn + pn + ' beyond ' + pn + ' to ' + hn + ', with ' + pn + hn + '=a/2. Points ' + cn + ', ' + gn + ', ' + mn + ' are collinear, as are ' + cn + ', ' + pn + ', ' + hn + '. The triangles share the included angle at ' + cn + ' and both adjacent-side ratios are 3/2. SAS similarity therefore gives the third side.',
+        tex: R`|${pn}${hn}|=\frac a2,\quad |${cn}${hn}|=\frac32a,\quad\frac{|${cn}${mn}|}{|${cn}${gn}|}=\frac{|${cn}${hn}|}{|${cn}${pn}|}=\frac32\qquad △ ${cn}${mn}${hn}\sim△ ${cn}${gn}${pn},\quad |${mn}${hn}|=\frac32|${gn}${pn}|=\frac{\sqrt6}{2}a` },
+      { ...shared, id: 'combine', title: 'Obtain the resultant from side ratios',
+        text: pair.name + ' corresponds to ' + mn + '→' + pn + '; after translation ' + single.name + ' corresponds to ' + pn + '→' + hn + ' with the same scale factor. Their sum corresponds to ' + mn + '→' + hn + '. The side ratio √3:1:√6 gives the resultant magnitude directly. For negative charges all corresponding vectors reverse, preserving the lengths.',
+        tex: R`E_0=\frac{k|q|}{a^2},\quad ${pair.tex}=\frac{2kq}{a^3}\vec{${mn}${pn}},\quad ${single.tex}=\frac{2kq}{a^3}\vec{${pn}${hn}}\qquad |${pair.tex}|:|${single.tex}|:|\vec E|=|${mn}${pn}|:|${pn}${hn}|:|${mn}${hn}|=\sqrt3:1:\sqrt6\qquad |\vec E|=\sqrt6 E_0=${VA.texV(V.len(d.T))}` }
+    ];
   };
   VA.combineStep = function (d, hide, dir, unit) {
-    const G = d.groups, z = G.filter(g => V.len(g.S) < 1e-12);
-    // If a partial sum is zero, the net field is the sum of the remaining partial sums (zero if all vanish)
-    if (z.length) {
-      const nz = G.filter(g => V.len(g.S) >= 1e-12);
-      return { id: 'combine', title: 'Combine the partial sums', hide,
-        text: z.map(g => g.name).join(', ') + (z.length > 1 ? ' are all zero, ' : ' is zero, ') + (nz.length === 1 ? 'so the net field equals ' + nz[0].name + '.' : nz.length ? 'so the net field is the vector sum of ' + nz.map(g => g.name).join(', ') + '.' : 'so the net field is zero.'),
-        tex: R`|\vec E|=${VA.texV(V.len(d.T))}` };
-    }
-    if (G.length === 2) {
-      const [a, b] = G, ph = VA.ang(a.S, b.S), perp = Math.abs(ph - 90) < 1e-4;
-      const da = dir(a.S), db = dir(b.S);
-      const why = perp ? (da && db ? a.name + ' points ' + da + ' and ' + b.name + ' points ' + db + ', so the two are perpendicular.' : a.name + ' and ' + b.name + ' are perpendicular.') : 'The directions of ' + a.name + ' and ' + b.name + ' give this angle.';
-      return { id: 'combine', title: 'Combine ' + a.name + ' and ' + b.name, hide, view: V.len(V.cross(a.S, b.S)) > 1e-12 ? V.cross(a.S, b.S) : null, ph,
-        ask: ph > 0.5 && ph < 179.5 ? { q: 'What is the angle between ' + a.name + ' and ' + b.name + ', approximately?', options: VA.angOpts(ph, [90]), a: r1(ph) + '°', why } : null,
-        text: perp ? (perpWhy(a, b, d) || (da && db && /→/.test(da) && /→/.test(db) ? a.name + ' lies along line ' + da.replace(/^along |→/g, '') + ' and ' + b.name + ' lies along line ' + db.replace(/^along |→/g, '') + '. These two lines are perpendicular, so ' + a.name + ' and ' + b.name + ' are perpendicular.' : a.name + ' and ' + b.name + ' are perpendicular.')) + ' The Pythagorean theorem gives the magnitude of the net field.'
-          : 'With the angle φ between ' + a.name + ' and ' + b.name + ' known, the parallelogram rule (law of cosines) gives the magnitude of the net field.',
-        tex: perp ? (() => {
-          // e.g. Σ₁√(1+1/27) = 8√(28/27): factor out the larger partial sum first, then simplify
-          const big = V.len(a.S) >= V.len(b.S) ? a : b, sm = big === a ? b : a, q = Math.pow(V.len(sm.S) / V.len(big.S), 2), nq = VA.nice(q), nb = VA.nice(V.len(big.S));
-          const mid = nq && nb && !/√/.test(nq.text) ? R`=\Sigma_{${big.i + 1}}\sqrt{1+${nq.tex}}` : '';
-          return R`|\vec E|=\sqrt{\Sigma_{${a.i + 1}}^2+\Sigma_{${b.i + 1}}^2}${mid}=${VA.texV(V.len(d.T))}`;
-        })() : R`|\vec E|=\sqrt{\Sigma_{${a.i + 1}}^2+\Sigma_{${b.i + 1}}^2+2\Sigma_{${a.i + 1}}\Sigma_{${b.i + 1}}\cos\varphi}=${VA.texV(V.len(d.T))}\quad\varphi=${f4(ph)}^\circ` };
-    }
-    return { id: 'combine', title: 'Combine the partial sums', hide, text: 'Place ' + G.map(g => g.name).join(', ') + ' tip to tail. Their vector sum is the net field.', tex: R`|\vec E|=|${G.map(g => g.tex).join('+')}|=${VA.texV(V.len(d.T))}` };
+    const G = d.groups, two = G.length === 2 && G.every(g => V.len(g.S) > 1e-12);
+    const proof = two ? lengthProof(G[0].items, G[1].items) : lengthProof(d.parts);
+    const base = two ? V.dot(G[0].S, G[0].S) + V.dot(G[1].S, G[1].S) : d.parts.reduce((sum, a) => sum + a.mag * a.mag, 0);
+    proof.squared = base + 2 * proof.dot;
+    const square = two ? R`D=${G[0].tex}\cdot ${G[1].tex}=\sum C_{ij}=${VA.texV(proof.dot)}\qquad |\vec E|^2=|${G[0].tex}|^2+|${G[1].tex}|^2+2D` : R`|\vec E|^2=\sum_i E_i^2+2\sum_{i<j}C_{ij}`;
+    const D = V.len(d.T) > 1e-12 ? dir(d.T) : null;
+    return { id: 'combine', proof, title: 'Combine partial sums using known distances', hide,
+      view: two && V.len(V.cross(G[0].S, G[1].S)) > 1e-12 ? V.cross(G[0].S, G[1].S) : null,
+      text: proofText + (two ? ' By distributivity, adding C_ij across the two groups gives their scalar product D. Expand the squared resultant to find its magnitude; the Pythagorean theorem applies when D=0.' : ' Expand the squared sum of all component fields. This distance identity also covers vanishing groups and more than two remaining partial sums.') + (D ? ' The net field points ' + D + '.' : ''), rows: proofRows(proof),
+      tex: proofTex + R`\qquad ` + square + R`=${VA.texV(base)}+2(${VA.texV(proof.dot)})=${VA.texV(Math.max(0, proof.squared))}\qquad |\vec E|=${VA.texV(V.len(d.T))}` };
   };
   VA.checkStep = function (d, unit) {
     const D = VA.describe(d.T, d.named), T = d.T;
@@ -368,6 +380,16 @@
         MH.dash(out, P, M(q.p), C.guide);
       }
     }
+    if (active && active.tetra) {
+      const t = active.tetra;
+      const points = [{ n: t.mn, p: t.mid }, { n: t.gn, p: t.G }];
+      const segments = [[t.C, t.mid], [t.G, t.P], [t.mid, t.P]];
+      if (active.id !== 'tetraHeight') { points.push({ n: t.hn, p: t.H }); segments.push([t.C, t.H], [t.mid, t.H]); }
+      for (const q of points) if (!(out.labels || []).some(l => l.text === q.n)) MH.mark(out, M(q.p), q.n, C.mark, Rr * 0.018);
+      for (const [a, b] of segments) MH.dash(out, M(a), M(b), C.ang);
+      if (active.id !== 'tetraHeight') MH.tri(out, [M(t.mid), P, M(t.H)], C.pot, 0.07);
+      MH.right(out, M(t.G), V.sub(t.P, t.G), V.sub(t.mid, t.G), Rr * 0.025);
+    }
     if (cur === 'list' || cur === 'coordR') for (const x of d.parts) { MH.dash(out, P, M(x.p), C.guide); (out.labels = out.labels || []).push({ p: V.lerp(P, M(x.p), 0.55), text: 'r=' + VA.cell(x.r), cls: 'pt', kind: 'vectors' }); }
     // Component fields with the same direction (e.g. collinear E_T1, E_T2) are offset perpendicular to it; labels go outside the arrowhead and at mid-length respectively
     const offs = VA.offsets(d.parts.map(x => x.E), Rr * 0.035), rank = offs.rank;
@@ -418,7 +440,7 @@
         const [a, b] = d.groups;
         vec(P, S(a.S), [...C.part, 0.7], a.name, 'part', 2.2); vec(P, S(b.S), [...C.part, 0.7], b.name, 'part', 2.2);
         MH.dash(out, V.add(P, S(a.S)), V.add(P, S(d.T))); MH.dash(out, V.add(P, S(b.S)), V.add(P, S(d.T)));
-        if (Math.abs(VA.ang(a.S, b.S) - 90) < 0.05) MH.right(out, P, a.S, b.S, Rr * 0.035);
+        if (V.len(a.S) * V.len(b.S) > 1e-24 && Math.abs(V.dot(a.S, b.S)) <= 1e-9 * V.len(a.S) * V.len(b.S)) MH.right(out, P, a.S, b.S, Rr * 0.035);
       }
       vec(P, S(d.T), C.sum, d.partial ? 'Σ (selected)' : 'E_net', 'sum', 3.2);
     }
@@ -430,7 +452,7 @@
   VA.stepHTML = function (s) {
     let html = '';
     if (s.rows) html += '<table class="cap-tbl">' + s.rows.map((r, i) => '<tr>' + r.map(c => (i ? '<td>' : '<th>') + U.rich(c) + (i ? '</td>' : '</th>')).join('') + '</tr>').join('') + '</table>';
-    if (s.tex) html += '<div class="cap-m">' + EL.texBlock(s.tex) + '</div>';
+    if (s.tex) html += '<div class="cap-m' + (s.proof || s.tetra ? ' cap-proof' : '') + '">' + EL.texBlock(s.tex) + '</div>';
     return html;
   };
 })(window.EL);

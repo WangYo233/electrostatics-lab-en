@@ -123,23 +123,24 @@
     const g = [1, 2].map(gi => parts.filter(x => cp.groups[x.i] === gi));
     if (g[0].length && g[1].length) {
       const s1 = g[0].reduce((a, x) => V.add(a, x.E), [0, 0, 0]), s2 = g[1].reduce((a, x) => V.add(a, x.E), [0, 0, 0]);
-      const th = Math.acos(U.clamp(V.dot(s1, s2) / (V.len(s1) * V.len(s2)), -1, 1)) * 180 / Math.PI;
+      const lengths = V.len(s1) * V.len(s2), th = lengths > 1e-24 ? Math.acos(U.clamp(V.dot(s1, s2) / lengths, -1, 1)) * 180 / Math.PI : null;
       out.push(K.group('Grouped partial sums',
         h('p', null, 'Σ₁ = ' + g[0].map(x => 'E' + x.label).join('+') + '，|Σ₁| = ' + EL.VA.cell(V.len(s1))),
         h('p', null, 'Σ₂ = ' + g[1].map(x => 'E' + x.label).join('+') + '，|Σ₂| = ' + EL.VA.cell(V.len(s2))),
-        h('p', null, 'The angle between Σ₁ and Σ₂ is ' + U.fmt(th, 4) + '°' + (Math.abs(th - 90) < 0.05 ? ', so they are perpendicular.' : '.'))));
+        h('p', null, th == null ? 'The angle is undefined when a partial sum is zero.' : 'Coordinate check: the angle between Σ₁ and Σ₂ is approximately ' + U.fmt(th, 4) + '°. See Start synthesis for the derivation from distances.')));
     } else out.push(K.tip('In the Group column, put symmetric component fields into Σ₁ and Σ₂. Find the partial sum of each group, then combine them.', 'ⓘ Grouped sum'));
     const pick = cp.pick.map(i => parts.find(x => x.i === i)).filter(Boolean);
     if (pick.length === 2) {
       const a = pick[0].E, b = pick[1].E, la = V.len(a), lb = V.len(b), cs = U.clamp(V.dot(a, b) / (la * lb), -1, 1), deg = Math.acos(cs) * 180 / Math.PI;
-      const ex = K.exactTrig(deg), m2 = la * la + lb * lb + 2 * la * lb * cs, n = V.cross(a, b);
+      const r1 = V.dist(c.probe.pos, c.sources[pick[0].i].p), r2 = V.dist(c.probe.pos, c.sources[pick[1].i].p), distance = V.dist(c.sources[pick[0].i].p, c.sources[pick[1].i].p);
+      const m2 = Math.max(0, la * la + lb * lb + 2 * la * lb * cs), n = V.cross(a, b);
       const others = parts.filter(x => !pick.includes(x)).map(x => 'E' + x.label + ' makes an angle with that plane of ' + U.fmt(Math.asin(U.clamp(Math.abs(V.dot(V.norm(x.E), V.norm(n))), 0, 1)) * 180 / Math.PI, 3) + '°');
       out.push(K.group('Pairwise sum: E' + pick[0].label + ' and E' + pick[1].label,
         K.check('Show their plane', cp.plane, v => { cp.plane = v; A.update(); }),
         V.len(n) > 1e-12 ? K.btn('View plane head-on', () => A.alignView(n), 'mini') : null,
         others.length && V.len(n) > 1e-12 ? h('p.note', null, others.join('; ') + ' (an angle of 0° means coplanar).') : null,
-        h('p', null, 'Angle θ = ' + U.fmt(deg, 4) + '°'),
-        h('p', null, 'cos θ = ' + (ex ? ex.cos + ' (exact)' : U.fmt(cs, 4) + ' (approximate)') + ', sin θ = ' + (ex ? ex.sin : U.fmt(Math.sin(deg * Math.PI / 180), 4))),
+        h('p', null, 'Use the cosine rule on the source triangle and the charge signs. Here r₁ and r₂ are the probe-to-source distances, and d is the source separation. Angle readout θ ≈ ' + U.fmt(deg, 4) + '°.'),
+        h('div.formula', { html: EL.texBlock(String.raw`r_1=${EL.VA.texV(r1)},\quad r_2=${EL.VA.texV(r2)},\quad d=${EL.VA.texV(distance)}\qquad\cos\theta=\operatorname{sgn}(q_1q_2)\frac{r_1^2+r_2^2-d^2}{2r_1r_2}\approx ${U.fmt(cs, 6)}`) }),
         h('div.formula', { html: EL.texBlock(String.raw`|\vec E_1+\vec E_2|^2=E_1^2+E_2^2+2E_1E_2\cos\theta`) }),
         h('p', null, '|E' + pick[0].label + '+E' + pick[1].label + '| = √' + U.fmt(m2, 5) + ' = ' + EL.VA.cell(Math.sqrt(m2)) + ' kQ/L²')));
     } else out.push(K.note('Check two component fields in the Pair column to see their sum.'));
