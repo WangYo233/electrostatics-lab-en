@@ -147,7 +147,7 @@
   VA.plan = function (o) {
     const parts = o.parts, P = o.P, named = o.named || [], unit = o.unit || 'kQ/L²', rU = o.rUnit || 'L', pn = o.pName || 'P';
     const T = VA.sum(parts), groups = VA.group(parts, P), hide = o.hide ? ['lines', 'contours', 'surfaces', 'flow'] : null;
-    const d = { P, parts, groups, T, named, pn, partial: !!o.partial }, steps = [];
+    const d = { P, parts, groups, T, named, pn, unit, rU, partial: !!o.partial }, steps = [];
     const dir = v => VA.describe(v, named);
     steps.push({ id: 'list', title: 'List the component fields', text: (o.partial ? 'Only ' + parts.map(x => x.n).join(', ') + ', selected in free synthesis, are combined this time. The result is their vector sum, not the net field at ' + pn + '. ' : '') + 'The electric field that each source produces alone at ' + pn + ' is a component field, with magnitude |E_i| = k|q_i|/r_i². The component field of a positive source points away from that source, and that of a negative source points toward it.',
       rows: [['Source', 'q', 'r / ' + rU, '|E_i| / ' + unit, 'Direction']].concat(parts.map(x => [x.label, VA.cell(x.q), VA.cell(x.r), VA.txtV(x.mag), (x.q > 0 ? 'away from ' : 'toward ') + x.label])) });
@@ -233,6 +233,7 @@
       ask = { q: 'In which direction does ' + nm + ' point?', options: [right, toP ? 'from ' + pn + ' to ' + mn : 'from ' + mn + ' to ' + pn, 'from ' + s.a.label + ' to ' + s.b.label].sort(), a: right,
         why: 'The diagonal ' + nm + ' of the rhombus corresponds to side ' + mn + pn + ' of triangle ' + tri + '. Both sources are ' + (toP ? 'positive, so ' : 'negative, so ') + nm + ' points ' + right + '.' };
     }
+    tex = R`r=|${pn}${s.a.label}|=|${pn}${s.b.label}|=${VA.texV(s.r)},\quad E_0=|\vec ${s.a.n}|=|\vec ${s.b.n}|=\frac{k|q|}{r^2}=${VA.texV(s.E)}\qquad ` + tex;
     return { id: 'similar', g, sim: s, th: s.th, title: 'Combine ' + s.a.n + ' and ' + s.b.n + ' using similar triangles', text, tex, ask,
       setup: 'Let ' + mn + ' be the midpoint of segment ' + s.a.label + s.b.label + '.',
       view: V.cross(V.sub(s.a.p, d.P), V.sub(s.b.p, d.P)) };
@@ -245,7 +246,7 @@
     const tex = s.opp
       ? R`|${g.tex}|=E_0\cdot\frac{|${s.pos.label}${s.neg.label}|}{r}=${VA.texV(s.E)}\times${VA.texV(s.ab / s.r)}=${VA.texV(L)}`
       : R`|${g.tex}|=2E_0\cdot\frac{|${pn}${s.mn}|}{r}=2\times${VA.texV(s.E)}\times${VA.texV(s.pm / s.r)}=${VA.texV(L)}`;
-    return { id: 'pairSum', g, sim: s, title: 'Find the magnitude and direction of ' + nm, hide, view: V.cross(s.a.E, s.b.E), text: text + (D ? ' ' + nm + ' points ' + D + '.' : ''), tex };
+    return { id: 'pairSum', g, sim: s, title: 'Find the magnitude and direction of ' + nm, hide, view: V.cross(s.a.E, s.b.E), text: text + (D ? ' ' + nm + ' points ' + D + '.' : ''), tex: R`r=|${pn}${s.a.label}|=|${pn}${s.b.label}|=${VA.texV(s.r)},\quad E_0=\frac{k|q|}{r^2}=${VA.texV(s.E)}\qquad ` + tex };
   };
   VA.pairStep = function (g, d, hide, dir) {
     const [a, b] = g.items, eq = tol(a.mag, b.mag), zero = V.len(g.S) < 1e-12, D = zero ? null : dir(g.S);
@@ -254,7 +255,7 @@
       text: zero ? a.n + ' and ' + b.n + ' have equal magnitudes and opposite directions, so their vector sum ' + g.name + ' is zero.' :
         (col ? a.n + ' and ' + b.n + ' lie on the same line and point ' + (para ? 'the same way, so the magnitude of ' + g.name + ' is the sum of their magnitudes.' : 'in opposite directions, so the magnitude of ' + g.name + ' is the difference of their magnitudes, and ' + g.name + ' points the same way as the larger component field.')
           : 'Take ' + a.n + ' and ' + b.n + ' as adjacent sides of a parallelogram. The diagonal represents their vector sum ' + g.name + '.' + (eq ? ' The two component fields have equal magnitudes, so ' + g.name + ' lies along the bisector of the angle between them.' : '')) + (D ? ' ' + g.name + ' points ' + D + '.' : ''),
-      tex: col && !zero ? R`|${g.tex}|=${para ? 'E_1+E_2' : '|E_1-E_2|'}=${VA.texV(V.len(g.S))}` : eq ? R`|${g.tex}|=2E\cos\frac{\theta}{2}=${VA.texV(V.len(g.S))}` : R`|${g.tex}|=\sqrt{E_1^2+E_2^2+2E_1E_2\cos\theta}=${VA.texV(V.len(g.S))}` };
+      tex: R`E_1=|\vec ${a.n}|=${VA.texV(a.mag)},\quad E_2=|\vec ${b.n}|=${VA.texV(b.mag)}\qquad ` + (col && !zero ? R`|${g.tex}|=${para ? 'E_1+E_2' : '|E_1-E_2|'}=${VA.texV(V.len(g.S))}` : eq ? R`|${g.tex}|=2E_1\cos\frac{\theta}{2}=${VA.texV(V.len(g.S))}` : R`|${g.tex}|=\sqrt{E_1^2+E_2^2+2E_1E_2\cos\theta}=${VA.texV(V.len(g.S))}`) };
   };
   VA.planeStep = function (g, d, hide) {
     const lb = g.items.map(x => x.label).join(''), pn = d.pn;
@@ -390,10 +391,20 @@
       if (active.id !== 'tetraHeight') MH.tri(out, [M(t.mid), P, M(t.H)], C.pot, 0.07);
       MH.right(out, M(t.G), V.sub(t.P, t.G), V.sub(t.mid, t.G), Rr * 0.025);
     }
-    if (cur === 'list' || cur === 'coordR') for (const x of d.parts) { MH.dash(out, P, M(x.p), C.guide); (out.labels = out.labels || []).push({ p: V.lerp(P, M(x.p), 0.55), text: 'r=' + VA.cell(x.r), cls: 'pt', kind: 'vectors' }); }
+    // Use the same symbols on geometric segments and field arrows as in the active proof.
+    const lengths = active && active.sim ? active.g.items : active && active.g ? active.g.items : d.parts;
+    if (active && (active.sim || active.g || active.proof || cur === 'list' || cur === 'coordR')) for (const x of lengths) {
+      MH.dash(out, P, M(x.p), C.guide);
+      (out.labels = out.labels || []).push({ p: V.lerp(P, M(x.p), 0.55), text: (active.sim ? 'r' : 'r_' + x.label) + '=' + VA.cell(x.r) + ' ' + (d.rU || 'L'), cls: 'pt vec', kind: 'vectors' });
+    }
+    if (active && active.sim && !pending) {
+      const m = active.sim;
+      out.labels.push({ p: V.lerp(M(m.a.p), M(m.b.p), 0.5), text: '|' + m.a.label + m.b.label + '|=' + VA.cell(m.ab) + ' ' + (d.rU || 'L'), cls: 'pt vec', kind: 'vectors' });
+      if (!m.opp) out.labels.push({ p: V.lerp(P, M(m.mid), 0.5), text: '|' + d.pn + m.mn + '|=' + VA.cell(m.pm) + ' ' + (d.rU || 'L'), cls: 'pt vec', kind: 'vectors' });
+    }
     // Component fields with the same direction (e.g. collinear E_T1, E_T2) are offset perpendicular to it; labels go outside the arrowhead and at mid-length respectively
     const offs = VA.offsets(d.parts.map(x => x.E), Rr * 0.035), rank = offs.rank;
-    d.parts.forEach((x, i) => { const a = al(x); vec(V.add(P, offs[i]), S(x.E), [...(x.q > 0 ? C.pos : C.neg), a], a > 0.5 ? x.n : null, x.q > 0 ? 'pos' : 'neg', 2.4, rank[i] % 2 ? 0.55 : 1.06); });
+    d.parts.forEach((x, i) => { const alias = active && (active.sim && active.g.items.includes(x) || active.tetra && active.id === 'combine'); const a = alias ? 1 : al(x); vec(V.add(P, offs[i]), S(x.E), [...(x.q > 0 ? C.pos : C.neg), a], a > 0.5 ? x.n + (alias ? '=E₀' : '') : null, x.q > 0 ? 'pos' : 'neg', 2.4, rank[i] % 2 ? 0.55 : 1.06); });
     const s = pending ? null : steps[k];
     if (s && s.id === 'angle') {
       const [a, b] = s.g.items;

@@ -129,7 +129,19 @@
   };
   // The correct option of a multiple-choice question: the magnitude for field questions, the answer itself otherwise
   X.rightOf = o => o.right != null ? o.right : o.q.t === 'E' ? o.mag : o.answer;
-  X.solve = function (pb) { const R = X.resolve(pb); return { R, ans: (pb.qs || []).map(q => X.answer(pb, R, q)) }; };
+  X.solve = function (pb) {
+    const R = X.resolve(pb), ans = (pb.qs || []).map(q => {
+      if (q.t === 'trend' && R.pts[q.a]?.p && R.pts[q.b]?.p) {
+        const a = R.pts[q.a].p, b = R.pts[q.b].p, d = V.sub(b, a), length2 = V.dot(d, d);
+        if (length2 < 1e-18) return { q, ok: false, err: 'The path endpoints coincide; a direction cannot be defined.' };
+        if (!R.analytic && R.sources.some(source => { const s = V.dot(V.sub(source.p, a), d) / length2; return s > 1e-9 && s < 1 - 1e-9 && V.dist(source.p, V.addS(a, d, s)) < 1e-9; })) return { q, ok: false, err: 'The path passes through a source charge where potential is undefined.' };
+      }
+      const o = X.answer(pb, R, q);
+      if (o.ok && q.t === 'trend') o.expl = X.pathSteps(pb, R, o, 0.3).map(st => ({ t: st.title + ': ' + st.text, tex: st.tex, rows: st.rows }));
+      return o;
+    });
+    return { R, ans };
+  };
 
   // ---- Text: stem, questions, solutions ----
   X.stem = function (pb, R) {
