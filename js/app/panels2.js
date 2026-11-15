@@ -67,6 +67,7 @@
     else if (c.probeVisible && c.probe.free) t.push(['probe', 'Probe P']);
     if (m.editor && (m.id === 1 || m.id === 7)) c.sources.forEach((s, i) => { if (!(st.custom && st.custom[i] && st.custom[i].bind)) t.push(['src' + i, 'Source charge ' + s.label]); });
     for (const q of A.sweepParams(c)) t.push(['par:' + q.key, 'Parameter sweep: ' + q.label.replace(/<[^>]+>/g, '')]);
+    if (c.probeVisible && c.probe.free && EL.ProbeMotion.validPath(EL.ProbeMotion.route(st.inquiry))) t.unshift(['route', 'Probe (defined route)']);
     return t;
   };
   // Model parameters that can be swept: numeric parameters visible in the panel and unrelated to the probe
@@ -150,6 +151,18 @@
     return out;
   };
 
+  A.removeBackground = function (bi) {
+    const st = A.st, positions = A.resolveSources();
+    st.custom.forEach((source, i) => {
+      if (!source.bind) return;
+      if (source.bind.bg === bi) { source.p = positions[i].p.slice(); source.bind = null; }
+      else if (source.bind.bg > bi) source.bind.bg--;
+    });
+    st.hidden.bgs.splice(bi, 1);
+    if (st.showSpecial === bi) st.showSpecial = -1;
+    else if (st.showSpecial > bi) st.showSpecial--;
+  };
+
   A.bgEditor = function (c) {
     const st = c.st, bgs = st.hidden.bgs, G = EL.GEO;
     let type = 'cube';
@@ -159,7 +172,7 @@
       const upd = (k, v) => { s[k] = v; A.update(); };
       return h('div.bg', null, h('div.bg-h', null, h('b', null, (bi + 1) + '. ' + G.TYPES[s.type].name),
         K.btn('Show special points', () => { st.showSpecial = st.showSpecial === bi ? -1 : bi; A.update(); }, 'mini', 'Show or hide the special points of this background'),
-        K.btn('Delete background', () => { bgs.splice(bi, 1); st.custom.forEach(x => { if (x.bind) { if (x.bind.bg === bi) { x.bind = null; } else if (x.bind.bg > bi) x.bind.bg--; } }); A.update(); A.renderPanel(); }, 'mini')),
+        K.btn('Delete background', () => { A.removeBackground(bi); A.update(); A.renderPanel(); }, 'mini')),
         h('div.row.wrap', null, ...[['w', s.type === 'circle' || s.type === 'sphere' ? 'Diameter' : 'Width'], ['l', 'Length'], ['h', 'Height'], ['x', 'x'], ['y', 'y'], ['z', 'z']]
           .filter(([k]) => !(k === 'l' && !['rect', 'triangle', 'pyramid', 'prism'].includes(s.type)) && !(k === 'h' && !['pyramid', 'prism'].includes(s.type)))
           .map(([k, n]) => h('label.mini', null, n, K.cell(s[k], 0.1, v => { upd(k, k === 'w' || k === 'l' || k === 'h' ? Math.max(0.1, v) : v); A.renderPanel(); }, 3.4)))),

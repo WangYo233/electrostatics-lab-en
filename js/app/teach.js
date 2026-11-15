@@ -100,6 +100,7 @@
       'table{border-collapse:collapse;width:100%}td,th{border:1px solid #9aa6b2;height:30px;padding:4px}.ans{color:#2c41ad}math{font-family:"Cambria Math","STIX Two Math","Latin Modern Math",serif}math.rm{font-size:1em}' +
       '.eqn{display:grid;grid-template-columns:minmax(3em,1fr) auto minmax(3em,1fr);align-items:center;margin:8px 0}.eqn-m{grid-column:2;text-align:center}.eqn-n{grid-column:3;justify-self:end;font-family:"Times New Roman",serif}math[display=block]{display:block math;margin:4px auto}' +
       '@media print{body{margin:0}h2{break-after:avoid}.st{break-inside:avoid}}</style></head><body>';
+    html += U.watermarkHTML();
     html += '<h1>' + esc(m.code + ' ' + m.title + (m.analytic ? ' · ' + EL.SUB08[sub].name : '')) + ' worksheet' + (teacher ? ' (teacher edition)' : '') + '</h1>';
     const R = U.richMath;
     html += '<p>Name ________　Class ________　Date ________</p><h2>I. Fundamentals</h2><p>' + R(t.intro) + '</p>' +
