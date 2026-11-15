@@ -112,10 +112,9 @@
       const cs = st.custom && st.custom[i];
       const edit = (fn) => { A.ensureCustom(c); fn(st.custom[i]); A.update(); A.renderPanel(); };
       return h('tr', { tabindex: '0', onkeydown: e => { if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return; if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeCharge(i); } } }, h('td', null, s.label),
-        h('td', null, K.cell(s.q, 0.1, v => edit(x => { x.q = U.clamp(v, ed.qRange[0], ed.qRange[1]); }))),
-        ...[0, 1, 2].map(k => h('td', null, cs && cs.bind ? h('span.muted', null, U.fmt(s.p[k], 3)) : K.cell(+s.p[k].toFixed(3), 0.1, v => edit(x => { x.p[k] = U.clamp(v, -ed.xyz, ed.xyz); x.bind = null; })))),
-        h('td', null, cs && cs.bind ? K.btn('Unbind', () => { A.bindSource(i, null); A.update(); A.renderPanel(); }, 'mini', 'Remove the binding to the background special point and use free coordinates') : null,
-          K.btn('Delete', () => removeCharge(i), 'mini', 'Delete this charge, or focus the row and press Delete')));
+        h('td', null, K.cell(s.q, 0.1, v => edit(x => { x.q = U.clamp(v, ed.qRange[0], ed.qRange[1]); }), 3.6)),
+        ...[0, 1, 2].map(k => h('td', null, cs && cs.bind ? h('span.muted', null, U.fmt(s.p[k], 3)) : K.cell(+s.p[k].toFixed(3), 0.1, v => edit(x => { x.p[k] = U.clamp(v, -ed.xyz, ed.xyz); x.bind = null; }), 3.6))),
+        h('td', null, K.btn('×', () => removeCharge(i), 'mini', 'Delete this charge, or focus the row and press Delete')));
     });
     const kids = [h('table.src', null, h('thead', null, h('tr', null, ...['Source charge', 'q', 'x', 'y', 'z', ''].map(t => h('th', null, t)))), h('tbody', null, rows))];
     kids.push(h('p.note', null, st.custom || m.alwaysCustom ? 'Custom configuration: you can place up to ' + ed.max + ' source charges and drag them on the canvas.' : 'Standard configuration. Changing any charge switches to a custom configuration.'));
