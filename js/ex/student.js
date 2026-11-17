@@ -63,7 +63,7 @@
   X.guide = function (i) {
     X.stopPath();
     const o = S.sol.ans[i], R = S.sol.R, pb = S.pb;
-    S.qi = i; S.step = 0; S.ans = {};
+    S.qi = i; S.step = 0; S.ans = {}; S.curveZoom = 'detail';
     if (!R.analytic && o.plan && ['E', 'angle', 'Ezero'].includes(o.q.t)) X.focusStep();
     else { S.calc = o.q.t === 'trend' ? null : X.calculationSteps(S.pb, R, o); S.path = 0.3; X.focusCalculation(); }
     X.renderProblem();
@@ -97,26 +97,33 @@
       X.renderCap();
     }
   };
+  function pathBounds(R, a, b) {
+    const singular = n => R.sources.some(x => V.dist(x.p, R.pts[n].p) < 1e-9);
+    return { min: singular(a) ? 0.02 : 0, max: singular(b) ? 0.98 : 1, open: singular(a) || singular(b) };
+  }
   function drawPotentialCurve(canvas, R, a, b, s) {
     const dpr = devicePixelRatio || 1, w = canvas.clientWidth, h0 = canvas.clientHeight;
     if (!w || !h0) return;
     canvas.width = Math.round(w * dpr); canvas.height = Math.round(h0 * dpr);
     const g = canvas.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h0);
-    const vals = Array.from({ length: 101 }, (_, i) => { const x = 0.02 + 0.96 * i / 100, q = V.lerp(R.pts[a].p, R.pts[b].p, x); return [x, R.field(q).V]; }).filter(x => isFinite(x[1]));
+    const bounds = pathBounds(R, a, b), proof = S.sol?.ans[S.qi]?.pathProof;
+    if (S.curveZoom === 'detail' && proof?.roots.length) bounds.min = Math.max(bounds.min, proof.roots[0] - (proof.special?.kind === 'trianglePN' ? 0.07 : 0.08));
+    const vals = Array.from({ length: 101 }, (_, i) => { const x = bounds.min + (bounds.max - bounds.min) * i / 100, q = V.lerp(R.pts[a].p, R.pts[b].p, x); return [x, R.field(q).V]; }).filter(x => isFinite(x[1]));
     if (!vals.length) return;
     const lo = Math.min(...vals.map(x => x[1])), hi = Math.max(...vals.map(x => x[1])), span = hi - lo || 1;
     g.font = '11px sans-serif';
     const L = Math.max(45, g.measureText(U.fmt(hi, 3)).width + 12, g.measureText(U.fmt(lo, 3)).width + 12), T = 25, B = 22, RW = w - L - 8, RH = h0 - T - B;
-    const Xp = x => L + (x - 0.02) / 0.96 * RW, Yp = y => T + (hi - y) / span * RH;
+    const Xp = x => L + (x - bounds.min) / (bounds.max - bounds.min) * RW, Yp = y => T + (hi - y) / span * RH;
     const dark = EL.theme === 'dark'; g.strokeStyle = dark ? '#718096' : '#68778a'; g.fillStyle = dark ? '#e5edf7' : '#263446'; g.lineWidth = 1; g.font = '11px sans-serif';
     g.beginPath(); g.moveTo(L, T); g.lineTo(L, T + RH); g.lineTo(L + RW, T + RH); g.stroke();
-    g.fillText('V', 8, 13); g.fillText(a + ' → ' + b, Math.max(L + 4, w - 65), h0 - 4); g.fillText(U.fmt(hi, 3), 3, T + 4); g.fillText(U.fmt(lo, 3), 3, T + RH);
+    g.fillText('V', 8, 13); g.fillText('s: ' + bounds.min.toFixed(3) + ' – ' + bounds.max.toFixed(3), L + 6, 13); g.fillText(a + ' → ' + b, Math.max(L + 4, w - 65), h0 - 4); g.fillText(U.fmt(hi, 3), 3, T + 4); g.fillText(U.fmt(lo, 3), 3, T + RH);
     g.strokeStyle = '#f28e2b'; g.lineWidth = 2; g.beginPath(); vals.forEach((q, i) => i ? g.lineTo(Xp(q[0]), Yp(q[1])) : g.moveTo(Xp(q[0]), Yp(q[1]))); g.stroke();
-    const v = R.field(V.lerp(R.pts[a].p, R.pts[b].p, s)).V; if (isFinite(v)) { g.fillStyle = '#d1495b'; g.beginPath(); g.arc(Xp(s), Yp(v), 4, 0, Math.PI * 2); g.fill(); }
+    const v = R.field(V.lerp(R.pts[a].p, R.pts[b].p, s)).V; if (isFinite(v) && s >= bounds.min && s <= bounds.max) { g.fillStyle = '#d1495b'; g.beginPath(); g.arc(Xp(s), Yp(v), 4, 0, Math.PI * 2); g.fill(); }
   }
   function animatePath() {
     if (!S.pathPlaying) return;
-    S.path += 0.003; if (S.path > 0.98) S.path = 0.02;
+    const f = S.f, bounds = pathBounds(S.sol.R, f.a, f.b);
+    S.path += 0.003; if (S.path > bounds.max) S.path = bounds.min;
     updatePath(S.path);
     S.pathRaf = requestAnimationFrame(animatePath);
   }
@@ -154,13 +161,19 @@
       const steps = f.kind === 'path' ? X.pathSteps(S.pb, R, o, f.s) : S.calc, st = steps[S.step];
       const kids = [h('div.cap-h', null, h('span.cap-n', null, 'Calculation ' + (S.step + 1) + ' / ' + steps.length), h('b', { html: U.rich(st.title) }))];
       if (f.kind === 'path') {
-        kids.push(K.slider({ label: 'Position of X s = ' + f.a + 'X / ' + f.a + f.b, min: 0.02, max: 0.98, step: 0.001, val: f.s, on: v => updatePath(v) }));
+        const bounds = pathBounds(R, f.a, f.b);
+        kids.push(K.slider({ label: 'Position of X s = ' + f.a + 'X / ' + f.a + f.b, min: bounds.min, max: bounds.max, step: 0.001, val: f.s, on: v => updatePath(v) }));
         kids.push(h('div.cap-nav', null, h('span'), K.btn(S.pathPlaying ? 'Pause animation' : 'Play path', () => { S.pathPlaying = !S.pathPlaying; if (S.pathPlaying) S.pathRaf = requestAnimationFrame(animatePath); else { cancelAnimationFrame(S.pathRaf); S.pathRaf = 0; } X.renderCap(); }, 'mini')));
       }
       kids.push(h('div.calc-body', null, h('p.cap-t', { html: U.rich(st.text) }), h('div', { html: VA.stepHTML(st) })));
-      if (st.id === 'pathConclusion') {
+      if (f.kind === 'path') {
+        const zoom = h('select', { 'aria-label': 'Curve range' }, h('option', { value: 'full' }, 'Full finite interval'), h('option', { value: 'detail' }, 'Zoom near extrema'));
+        zoom.value = S.curveZoom || 'detail';
+        zoom.addEventListener('change', () => { S.curveZoom = zoom.value; const c = box.querySelector('canvas.potential-curve'); if (c) drawPotentialCurve(c, R, f.a, f.b, f.s); });
+        kids.push(h('label.row.wrap', null, h('span', null, 'Curve range'), zoom));
         const curve = h('canvas.potential-curve', { 'aria-label': 'Potential along the path' });
         kids.push(h('div.cap-curve-wrap', null, curve));
+        if (pathBounds(R, f.a, f.b).open) kids.push(h('p.note', null, 'Only finite readings are plotted. A point-source endpoint has a divergent limit and is excluded from the graph.'));
         S.curveResize = new ResizeObserver(() => drawPotentialCurve(curve, R, f.a, f.b, f.s));
         S.curveResize.observe(curve);
       }

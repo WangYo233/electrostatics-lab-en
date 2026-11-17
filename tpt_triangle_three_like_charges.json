@@ -28,6 +28,13 @@
         "b": "C"
       }
     },
+    "N": {
+      "def": {
+        "t": "mid",
+        "a": "A",
+        "b": "B"
+      }
+    },
     "P": {
       "def": {
         "t": "xyz",
@@ -50,9 +57,14 @@
     },
     {
       "t": "trend",
-      "a": "G",
+      "a": "A",
       "b": "M"
+    },
+    {
+      "t": "trend",
+      "a": "P",
+      "b": "N"
     }
   ],
-  "note": "P is directly above G, with PA = PB = PC = a. M is the midpoint of BC."
+  "note": "P is directly above G, with PA = PB = PC = a. M and N are the midpoints of BC and AB. Question 3 follows A→M with an open starting endpoint: A is a positive point source, so its potential is undefined and tends to positive infinity when approached. The animation does not assign A a finite reading."
 }

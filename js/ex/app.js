@@ -33,6 +33,16 @@
       children.push(h('label.row.wrap', null, h('span', null, 'Color'), color));
     }
     if (isCharge || isPoint) children.push(K.slider({ label: isCharge ? 'Charge display size' : 'Probe marker size', min: 0.6, max: 2.4, step: 0.1, val: look.size || 1, on: v => saveLook({ size: v }) }));
+    children.push(h('hr'), K.check('Show labels', W.layers.labels, value => {
+      W.layers.labels = value; X.renderChips(); if (W.last) W.show(...W.last); openElementStyle(e);
+    }));
+    const labels = W.r.scene.labels || [], keyOf = (label, i) => W.r.getLabelKey(label, i);
+    const ownKey = isCharge ? 'charge:' + hit.key : isPoint ? hit.key : null;
+    const own = labels.findIndex(label => label.id === ownKey);
+    if (own >= 0) children.push(K.check('Show this element’s label', W.r.isLabelVisible(labels[own], own), value => W.r.setLabelVisible(keyOf(labels[own], own), value)));
+    if (labels.length) children.push(h('details', null, h('summary', null, 'Individual labels'), labels.map((label, i) =>
+      K.check(U.plain(label.text), W.r.isLabelVisible(label, i), value => W.r.setLabelVisible(keyOf(label, i), value)))));
+    children.push(K.btn('Restore default labels and positions', () => { W.r.resetLabels(); menu.hidden = true; }, 'mini'), h('small', null, 'Right-click a label to hide or reset it. Hold a label, then drag it near its element.'));
     const fx = U.store.get('ex:fx', { glow: W.r.fx.glow, reveal: W.r.fx.reveal });
     const glow = K.check('Pulse charge glow (canvas-wide)', W.r.fx.glow, v => { W.r.fx.glow = v; fx.glow = v; U.store.set('ex:fx', fx); if (W.last) W.show(...W.last); });
     const reveal = K.check('Animate field-line drawing (when enabled)', W.r.fx.reveal, v => { W.r.fx.reveal = v; fx.reveal = v; U.store.set('ex:fx', fx); if (v) W.r.playReveal(); });

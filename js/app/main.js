@@ -334,6 +334,7 @@
     A.init(m);
     A.applyStage(0, true);
     try { A.r = new EL.Renderer(U.$('#gl'), U.$('#labels')); } catch (e) { U.$('#stage').replaceChildren(h('p.err', null, 'Cannot initialize WebGL (' + e.message + '). Use a modern browser that supports WebGL.')); return; }
+    U.$('#gl').addEventListener('contextmenu', event => A.r.labelMenu(event, null));
     const cam = A.r.cam;
     cam.attach(U.$('#gl'), {
       change: () => A.r.draw(),
