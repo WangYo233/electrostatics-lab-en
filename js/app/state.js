@@ -38,6 +38,8 @@
 
   // Apply a teaching stage: parameter presets, view, and display layers
   A.applyStage = function (i, keepLayers) {
+    if (A.restoreRouteProbe && A.st.inquiry?.routeEnabled) A.restoreRouteProbe(false);
+    else if (A.cancelRoutePick) A.cancelRoutePick(false);
     const st = A.st, m = st.model, s = m.stages[i];
     st.stage = i;
     if (s.preset) { Object.assign(st.p, s.preset); if (!m.alwaysCustom) st.custom = null; }
@@ -81,6 +83,7 @@
   // Several A.update calls within one action record only one step
   A.histSoon = function () { const H = A.hist; if (H.t) return; H.t = setTimeout(() => { H.t = 0; A.histCommit(); }, 0); };
   A.histApply = function (json) {
+    if (A.cancelRoutePick) A.cancelRoutePick();
     const st = A.st, d = JSON.parse(json), H = A.hist;
     if (st.anim.on) { st.anim.on = false; cancelAnimationFrame(A.raf); }
     H.cur = json;                          // Set the current state first: A.update calls during the restore will not record another step
@@ -306,16 +309,23 @@
     if (path) c.probe = { path, t: p[path.key], pos: path.pos(p[path.key]), name: pr.nameFn ? pr.nameFn() : 'P' };
     else if (fixed) c.probe = { pos: fixed.pos, name: fixed.name, fixed: true };
     else if (pr.free) c.probe = { pos: pr.free.map(k => p[k]), free: pr.free, name: 'P' };
+    // A custom route adds an independent observation probe without changing source geometry.
+    if (st.inquiry && (st.inquiry.routeEnabled || (st.layers.probe && (!c.probe || (!useCustom && pr.fromStage != null && st.stage < pr.fromStage))))) {
+      st.inquiry.routeEnabled = true;
+      const keys = ['__routeX', '__routeY', '__routeZ'], initial = c.probe ? c.probe.pos : [0, c.bound * 0.25, 0];
+      keys.forEach((key, i) => { if (!Number.isFinite(p[key])) p[key] = initial[i]; });
+      c.probe = { pos: keys.map(key => p[key]), free: keys, name: 'P', route: true };
+    }
     if (EL.ProbeMotion && st.inquiry && c.probe && c.probe.free) {
       c.probe.pos = EL.ProbeMotion.project(c.probe.pos, st.inquiry);
       c.probe.free.forEach((key, i) => { p[key] = c.probe.pos[i]; });
     }
-    if (c.probe) { c.probe.s = c.F.sample(c.probe.pos); c.probe.own = !!pr.ownVectors; }
+    if (c.probe) { c.probe.s = c.F.sample(c.probe.pos); c.probe.own = !c.probe.route && !!pr.ownVectors; }
     // Construction steps
     c.cs = A.stepState(c);
     c.hide = new Set();
     if (c.cs && c.cs.k >= 0 && c.cs.steps[c.cs.k].hide) c.cs.steps[c.cs.k].hide.forEach(x => c.hide.add(x));
-    c.probeVisible = !!c.probe && st.layers.probe && (pr.fromStage == null || st.stage >= pr.fromStage || useCustom);
+    c.probeVisible = !!c.probe && st.layers.probe && (pr.fromStage == null || st.stage >= pr.fromStage || useCustom || st.inquiry.routeEnabled);
     // Equipotential surface through the probe: add the potential at the probe to the level values; drag the probe to find where the surface "shrinks to a point" (a zero-field point)
     c.probeLevel = st.probeLevel && c.probeVisible && c.probe.s.ok ? +c.probe.s.V.toFixed(6) : null;
     if (c.probeLevel != null && !c.levels.some(v => Math.abs(v - c.probeLevel) < 1e-6)) c.levels = c.levels.concat(c.probeLevel).sort((a, b) => a - b);

@@ -81,7 +81,7 @@
     if (!T.some(x => x[0] === a.target)) { A.stopAnim(); a.target = T[0][0]; }
     const freeMotion = /^(probe|src)/.test(a.target), running = a.on, paused = !a.on && a.paused;
     // Control row: start (or resume) / pause, stop and reset, clear trails; three equal-width buttons in one row
-    const ctlRow = h('div.btns.anim-ctl', { style: 'display:grid;grid-template-columns:repeat(3,1fr);align-items:stretch' },
+    const ctlRow = h('div.btns.anim-ctl', { style: 'align-items:stretch' },
       K.btn(running ? '⏸ Pause animation' : paused ? '⏵ Resume animation' : '⏵ Play animation', () => A.toggleAnim(running ? null : a.target), 'primary'),
       Object.assign(K.btn('⏹ Stop animation', () => A.resetAnim(), '', 'Stop the animation and return to the configuration before the start'), { disabled: !running && !paused }),
       K.btn('Clear trails', () => { const s = c.st; s.trail = []; s.eTrail = []; s.sliceTrail = []; A.update(); }));
@@ -165,7 +165,7 @@
 
   A.bgEditor = function (c) {
     const st = c.st, bgs = st.hidden.bgs, G = EL.GEO;
-    let type = 'cube';
+    let type = '';
     const list = bgs.map((s, bi) => {
       const b = G.build(s), dim = G.TYPES[s.type].dim;
       let sp = 0, q = 1;
@@ -185,9 +185,15 @@
           }, 'mini')),
         dim === 2 ? h('p.note', null, 'This planar figure lies in the plane z = ' + (s.z || 0) + '.') : null);
     });
+    const add = K.btn('Add background', () => {
+      if (!G.TYPES[type]) return;
+      bgs.push({ type, w: 4, l: 3, h: 3, x: 0, y: 0, z: 0 });
+      st.layers.geom = true; A.update(); A.renderPanel();
+    });
+    add.disabled = true;
     return K.group('Geometry background',
-      h('div.row', null, K.select('', Object.keys(G.TYPES).map(k => [k, G.TYPES[k].name]), type, v => { type = v; }),
-        K.btn('Add background', () => { bgs.push({ type, w: 4, l: 3, h: 3, x: 0, y: 0, z: 0 }); st.layers.geom = true; A.update(); A.renderPanel(); })),
+      h('div.row.bg-add', null, K.select('Geometry background', [['', 'Choose geometry…']].concat(['triangle', 'square', 'rect', 'circle', 'tetra', 'cube', 'prism', 'pyramid', 'octa', 'sphere', 'dodeca', 'icosa', 'truncIcosa'].map(k => [k, G.TYPES[k].name])), type, v => { type = v; add.disabled = !v; }),
+        add),
       ...list, K.tip('Geometry backgrounds are for reference only. Charges bound to special points move with the background.'));
   };
 })(window.EL);

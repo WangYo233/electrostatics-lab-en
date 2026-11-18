@@ -35,13 +35,15 @@
     if (!box.hidden && document.body.dataset.mode === 'analyze') U.$('#comp').replaceChildren(...[].concat(A.pComp(c)).filter(Boolean));
   };
   A.canCompose = c => !c.m.analytic && !!c.probe && c.sources.filter(s => s.q).length > 1;
-  // Whether the model really has a probe (the disk model has probe {free:null}, so it has none)
-  A.hasProbe = m => !!m.probe && !!(m.probe.free || m.probe.path || m.probe.pathFn || m.probe.fixedFn);
+  // Every model can use an observation probe, with an independent route when no preset exists.
+  A.hasProbe = () => true;
 
   // Parameter change: only redraw while dragging; after release, rebuild the panel if control visibility is affected
   A.onParam = function (key, v, live) {
     const st = A.st;
     st.p[key] = v;
+    const free = st.model.probe && st.model.probe.free, index = free ? free.indexOf(key) : -1;
+    if (st.inquiry.routeEnabled && index >= 0) st.p[['__routeX', '__routeY', '__routeZ'][index]] = v;
     A.update();
     if (!live) { if (st.model.params.some(q => q.show)) A.renderPanel(); else A.renderComp(); }
   };
@@ -66,16 +68,16 @@
     if (togs.length) out.push(K.group('Model options', ...togs.map(t => K.check(t.label, st.p[t.key], v => { st.p[t.key] = v; A.update(); A.renderPanel(); }))));
     if (m.editor) out.push(A.sourceEditor(c));
     if (m.id === 7) out.push(A.bgEditor(c));
-    if (A.hasProbe(m) && (pr.length || ptogs.length || m.probe.free)) {
+    if (A.hasProbe(m)) {
       if (!probeOn) out.push(K.group('Probe (field point)', K.btn('Open probe', () => { st.layers.probe = true; A.update(); A.renderPanel(); A.renderStageBar(); }, 'primary')));
       else {
         const kp = A.keyPoints(c).filter(x => x.p);
         out.push(K.group('Probe (field point)',
-          ...ptogs.map(t => K.check(t.label, st.p[t.key], v => { st.p[t.key] = v; A.update(); A.renderPanel(); })),
+          ...ptogs.map(t => K.check(t.label, st.p[t.key], v => { if (!v && t.key === m.probe?.customKey && A.restoreRouteProbe) A.restoreRouteProbe(false); st.p[t.key] = v; A.update(); A.renderPanel(); })),
           ...pr.map(q => K.slider(Object.assign({}, q, { val: +(+st.p[q.key]).toFixed(3), on: (v, l) => A.onParam(q.key, v, l) }))),
           c.probe && c.probe.free && kp.length ? h('div.row.wrap', null, K.select('Move probe to a key point', [['', 'Select a key point…']].concat(kp.map((x, i) => [i, x.name])), '', v => {
             if (v === '') return;
-            const q = kp[+v].p; c.probe.free.forEach((k, i) => { st.p[k] = +q[i].toFixed(4); }); A.update(); A.renderPanel();
+            const q = EL.ProbeMotion.project(kp[+v].p, st.inquiry); c.probe.free.forEach((k, i) => { st.p[k] = +q[i].toFixed(4); }); A.update(); A.renderPanel();
           })) : null,
           K.slider({ label: 'Field-vector display scale', min: 0.25, max: 4, step: 0.05, val: st.style.probeVec || 1, tip: 'Changes only the displayed length of the field arrows at the probe and of the synthesis drawing; the readings are unchanged.', on: v => { st.style.probeVec = v; A.update(); } }),
           K.note('You can also drag the probe on the canvas.')));
