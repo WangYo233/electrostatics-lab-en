@@ -8,7 +8,7 @@
 // Free exploration, analytic-field models and charges on a disk use the length unit L, with the same units as the lab (k = 1)
 (function (EL) {
   const V = EL.V, U = EL.U, X = EL.EX;
-  const fmtP = p => '(' + p.map(x => U.fmt(x, 3)).join(', ') + ')';
+  const fmtP = p => '(' + p.map(x => EL.VA.cell(x)).join(', ') + ')';
 
   // ---- Model numbers and names (same grouping and order as the home page and the lab) ----
   X.TPL_MODEL = { pair: 1, tetra: 4, cube: 6, octa: 5, tri: 7, square: 7 };
@@ -148,7 +148,7 @@
 
   // ---- Stems ----
   const BG_SIZE = s => {
-    const L = x => U.fmt(x, 3) + ' L', T = EL.GEO.TYPES[s.type].name;
+    const L = x => EL.VA.cell(x) + ' L', T = EL.GEO.TYPES[s.type].name;
     switch (s.type) {
       case 'square': return 'a square with side length ' + L(s.w) + ' (parallel to the xy plane)';
       case 'rect': return 'a rectangle of length ' + L(s.w) + ' and width ' + L(s.l) + ' (parallel to the xy plane)';
@@ -180,7 +180,7 @@
   };
   X.stemOf = function (pb, R) {
     const k = X.kindOf(pb);
-    if (k === 'field') return FIELD_STEM[pb.sub](pb.sp) + ptsStem(pb, R) + 'Take k = 1 (that is, ε₀ = 1/(4π)); ε is the relative permittivity and the length unit is L. Give numerical values only.';
+    if (k === 'field') return FIELD_STEM[pb.sub](pb.sp) + ptsStem(pb, R) + 'Take k = 1 (that is, ε₀ = 1/(4π)); ε is the relative permittivity and the length unit is L. Use the stated units for magnitudes and describe any requested direction.';
     if (k === 'disk') {
       const d = pb.disk, n = d.center ? d.N - 1 : d.N;
       return 'In the xy plane, ' + d.N + ' point charges are placed on a disk of radius R = ' + U.fmt(d.R) + ' L centered at the origin O: ' +

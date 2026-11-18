@@ -32,7 +32,7 @@
     if (kind === 'field') {
       const sub = EL.SUB08[pb.sub];
       R.field = p => { const r = sub.fn(pb.sp, p); return { V: r.V, E: r.E, ok: isFinite(r.V) && r.E.every(isFinite), region: r.region }; };
-      R.analytic = true;
+      R.analytic = true; R.sub = pb.sub;
     } else {
       const F = EL.Phys.pointField(sources, 1e-9);
       R.field = p => { const s = F.sample(p); return { V: s.V, E: s.E, ok: s.ok }; };
@@ -129,6 +129,42 @@
   };
   // The correct option of a multiple-choice question: the magnitude for field questions, the answer itself otherwise
   X.rightOf = o => o.right != null ? o.right : o.q.t === 'E' ? o.mag : o.answer;
+  // Ask for direction only when geometry supplies a clear, signed description.
+  X.fieldDirection = function (R, q, field) {
+    if (!field || !field.every(Number.isFinite) || V.len(field) < 1e-9) return '';
+    const unit = V.norm(field), point = R.pts[q.at]?.p, names = R.named || [];
+    const along = (a, b) => {
+      const d = V.sub(b.p, a.p), length = V.len(d);
+      if (length < 1e-9) return '';
+      const c = V.dot(unit, d) / length;
+      if (Math.abs(c) < 1 - 1e-9) return '';
+      const from = c > 0 ? a.n : b.n, to = c > 0 ? b.n : a.n;
+      return true ? 'from ' + from + ' toward ' + to : '由 ' + from + ' 指向 ' + to;
+    };
+    if (R.analytic) { const text = X.anaDir(R.sub, point, field); if (text && !/unit vector|单位矢量/.test(text)) return text; }
+    if (point) for (const other of names) { const text = along({ n: q.at, p: point }, other); if (text) return text; }
+    for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) { const text = along(names[i], names[j]); if (text) return text; }
+    return '';
+  };
+  X.fieldChoices = function (R, o) {
+    if (!o.ok || o.q.t !== 'E') return;
+    const dir = X.fieldDirection(R, o.q, o.T), append = value => !dir || /^0(?:\s|$)/.test(value) ? value : value + (true ? ', directed ' : '，方向') + dir;
+    o.dir = dir; o.directionAsked = !!dir; o.answer = append(o.mag);
+    if (dir && !o.options) o.options = [o.mag];
+    if (o.options) {
+      o.options = o.options.map(append); o.right = append(o.mag);
+      (o.distractors || []).forEach(item => { item.v = append(item.v); });
+      if (dir) {
+        const reverse = X.fieldDirection(R, o.q, V.mul(o.T, -1));
+        const wrong = o.mag + ', directed ' + reverse;
+        if (reverse && reverse !== dir && !o.options.includes(wrong)) {
+          if (o.options.length >= 4) { const index = o.options.findLastIndex(value => value !== o.right); const removed = o.options.splice(index, 1)[0]; o.distractors = (o.distractors || []).filter(item => item.v !== removed); }
+          o.options.push(wrong);
+          (o.distractors || (o.distractors = [])).push({ v: wrong, why: 'The field magnitude is correct, but the direction is reversed.' });
+        }
+      }
+    }
+  };
   X.solve = function (pb) {
     const R = X.resolve(pb), ans = (pb.qs || []).map(q => {
       if (q.t === 'trend' && R.pts[q.a]?.p && R.pts[q.b]?.p) {
@@ -137,6 +173,8 @@
         if (!R.analytic && R.sources.some(source => { const s = V.dot(V.sub(source.p, a), d) / length2; return s > 1e-9 && s < 1 - 1e-9 && V.dist(source.p, V.addS(a, d, s)) < 1e-9; })) return { q, ok: false, err: 'The path passes through a source charge where potential is undefined.' };
       }
       const o = X.answer(pb, R, q);
+      if (X.exactAnswer) X.exactAnswer(pb, R, o);
+      X.fieldChoices(R, o);
       if (o.ok && q.t === 'trend') o.expl = X.pathSteps(pb, R, o, 0.3).map(st => ({ t: st.title + ': ' + st.text, tex: st.tex, rows: st.rows }));
       return o;
     });
@@ -145,6 +183,7 @@
 
   // ---- Text: stem, questions, solutions ----
   X.stem = function (pb, R) {
+    if (pb.stem) return pb.stem;
     if (X.kindOf(pb) !== 'tpl') return X.stemOf(pb, R);
     // Vertices with the same charge are described together: "a point charge of −Q is placed at each of A and C"
     const T = X.TEMPLATES[pb.tpl], by = new Map();
@@ -161,7 +200,7 @@
   };
   X.qText2 = function (q, pb) {
     switch (q.t) {
-      case 'E': return 'Find the magnitude and direction of the electric field at ' + q.at + '.';
+      case 'E': { const R = X.resolve(pb), E = R.pts[q.at] && R.field(R.pts[q.at].p).E; return 'Find the magnitude' + (X.fieldDirection(R, q, E) ? ' and direction' : '') + ' of the electric field at ' + q.at + '.'; }
       case 'Ezero': return 'Is the electric field at ' + q.at + ' zero?';
       case 'V': return 'Find the electric potential at ' + q.at + '.';
       case 'Vcmp': return 'Compare the potentials at ' + q.a + ' and ' + q.b + '.';
@@ -184,11 +223,11 @@
       for (const s of o.plan) if (s.id !== 'list' && s.id !== 'group') L.push({ t: s.title + ': ' + s.text, tex: s.tex, rows: s.rows });
       if (q.t === 'angle') L.push({ t: 'For direction ' + q.a + '→' + q.b + ', let u be its displacement vector. The scalar product gives the angle after the resultant has been derived: ' + o.answer + '.', tex: String.raw`\vec u=\vec r_{${q.b}}-\vec r_{${q.a}},\qquad\cos\alpha=\frac{\vec E\cdot\vec u}{|\vec E||\vec u|}=${numTex(Math.cos(o.value * Math.PI / 180))},\qquad\alpha=${f4(o.value)}^\circ` });
     } else if (q.t === 'V') {
-      L.push({ t: 'Potential is a scalar. The potential at ' + q.at + ' is the algebraic sum of the potentials that each source produces there alone. Positive sources contribute positively and negative sources negatively.', tex:String.raw`\varphi_{${q.at}}=\sum_i\frac{kq_i}{r_i}=` + o.terms.map(x => (x.q < 0 ? '-' : '+') + numTex(Math.abs(x.v))).join('').replace(/^\+/, '') + '=' + numTex(o.value) });
+      L.push({ t: 'Potential is a scalar. The potential at ' + q.at + ' is the algebraic sum of the potentials that each source produces there alone. Positive sources contribute positively and negative sources negatively.', tex:String.raw`\varphi_{${q.at}}=\sum_i\frac{kq_i}{r_i}=` + o.terms.map(x => (x.q < 0 ? '-' : '+') + numTex(Math.abs(x.v))).join('').replace(/^\+/, '') + '=' + (o.exactTex || numTex(o.value)) });
     } else if (q.t === 'Vcmp') {
       L.push({ t: 'Calculate the potentials at ' + q.a + ' and ' + q.b + ' separately.', tex: String.raw`\varphi_{${q.a}}=${numTex(o.va)},\quad\varphi_{${q.b}}=${numTex(o.vb)}` }, { t: 'Therefore ' + o.answer + '.' });
     } else if (q.t === 'W') {
-      L.push({ t: 'The work done by the electric force equals the test charge times the potential difference between the start and end points: W = q(φ_' + q.a + ' − φ_' + q.b + ').', tex:String.raw`W=q(\varphi_{${q.a}}-\varphi_{${q.b}})=${numTex(q.q0 || 1)}\times(${numTex(o.va)}-(${numTex(o.vb)}))=${numTex(o.value)}` });
+      L.push({ t: 'The work done by the electric force equals the test charge times the potential difference between the start and end points: W = q(φ_' + q.a + ' − φ_' + q.b + ').', tex:String.raw`W=q(\varphi_{${q.a}}-\varphi_{${q.b}})=${numTex(q.q0 || 1)}\times(${numTex(o.va)}-(${numTex(o.vb)}))=${o.exactTex || numTex(o.value)}` });
     } else if (q.t === 'trend') {
       L.push({ t: 'Let E_∥ be the component of the net field along the path. Where E_∥ is positive, the potential decreases along the path. Where E_∥ is negative, the potential increases. Click "Guided exploration" and drag the point X along the path to watch the angle between the net field and the path direction.' },
         { t: 'So from ' + q.a + ' to ' + q.b + ', the potential ' + o.answer + '.' + (o.endSrc ? ' The endpoint ' + o.endSrc + ' is a ' + (o.endQ > 0 ? 'positive' : 'negative') + ' source, and the potential tends to ' + (o.endQ > 0 ? 'positive' : 'negative') + ' infinity as the path approaches it.' : '') });

@@ -61,8 +61,8 @@
       case 'mid': return 'the midpoint of ' + def.a + def.b;
       case 'face': return 'the center of ' + (g.flat ? (def.f.length === 3 ? 'triangle ' : 'square ') : 'face ') + def.f.join('') + (g.faceNote || '');
       case 'center': return g.kind && g.kind !== 'tpl' ? 'the origin O' : 'the center of the model';
-      case 'div': return 'the point X on segment ' + def.a + def.b + ' with ' + def.a + 'X : ' + def.a + def.b + ' = ' + EL.U.fmt(def.k, 3);
-      case 'xyz': return 'the point with coordinates (' + def.p.map(x => EL.U.fmt(x, 3)).join(', ') + ')·' + u;
+      case 'div': return 'the point X on segment ' + def.a + def.b + ' with ' + def.a + 'X : ' + def.a + def.b + ' = ' + EL.VA.cell(def.k);
+      case 'xyz': return 'the point with coordinates (' + def.p.map(x => EL.VA.cell(x)).join(', ') + ')·' + u;
       case 'sp': { const b = g.bgs && g.bgs[def.bg], s = b && b.special.find(x => x.key === def.key); return s ? 'the ' + s.name.charAt(0).toLowerCase() + s.name.slice(1) + ' of background ' + (def.bg + 1) + ' (' + EL.GEO.TYPES[b.type].name + ')' : 'a deleted background special point'; }
     }
     return '';
