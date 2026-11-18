@@ -60,6 +60,19 @@
     return f4(x).replace(/^-/, '−');
   };
   // Vectors with the same direction that coincide are shifted slightly in the perpendicular direction so each one stays visible (returns an offset array the same length as vs; .rank is the index within the group)
+  // A numerical equality is exact only when its source contributions support that form.
+  VA.valueEq = function (value, unit, terms) {
+    const exact = terms && EL.EX && EL.EX.exactSum ? EL.EX.exactSum(terms) : null, pi = EL.EX && EL.EX.niceNum ? EL.EX.niceNum(value) : null, n = exact || niceX(value) || (pi?.exact ? pi : null);
+    let tex = n ? n.tex : f4(value);
+    if (unit && /[+-]/.test(tex.replace(/^-/, ''))) tex = R`\left(${tex}\right)`;
+    return (n ? '=' : R`\approx `) + tex + (unit ? R`\,${unit.replace(/²/g, '^2').replace(/³/g, '^3')}` : '');
+  };
+  const vectorTerms = (items, total) => {
+    const length = V.len(total);
+    return length < 1e-12 ? [0] : items.map(item => V.dot(item.E, total) / length);
+  };
+  const tableCell = x => { const n = niceX(x); return n ? n.text : '≈' + f4(x); };
+  const tableNumber = x => typeof x !== 'number' || !Number.isFinite(x) ? U.fmt(x) : Number.isInteger(x) ? String(x) : '≈' + f4(x);
   VA.offsets = function (vs, gap) {
     const out = vs.map(() => [0, 0, 0]), seen = new Set();
     out.rank = vs.map(() => 0);
@@ -150,7 +163,8 @@
     const d = { P, parts, groups, T, named, pn, unit, rU, partial: !!o.partial }, steps = [];
     const dir = v => VA.describe(v, named);
     steps.push({ id: 'list', title: 'List the component fields', text: (o.partial ? 'Only ' + parts.map(x => x.n).join(', ') + ', selected in free synthesis, are combined this time. The result is their vector sum, not the net field at ' + pn + '. ' : '') + 'The electric field that each source produces alone at ' + pn + ' is a component field, with magnitude |E_i| = k|q_i|/r_i². The component field of a positive source points away from that source, and that of a negative source points toward it.',
-      rows: [['Source', 'q', 'r / ' + rU, '|E_i| / ' + unit, 'Direction']].concat(parts.map(x => [x.label, VA.cell(x.q), VA.cell(x.r), VA.txtV(x.mag), (x.q > 0 ? 'away from ' : 'toward ') + x.label])) });
+      rows: [['Source', 'q / Q', 'r / ' + rU, '|E_i| / (' + unit + ')', 'Direction']].concat(parts.map(x => [x.label, tableCell(x.q), tableCell(x.r), tableCell(x.mag), (x.q > 0 ? 'away from ' : 'toward ') + x.label])) });
+    if (groups.length > 1) steps[0].text += ' Let ' + groups.map(g => g.name + ' = ' + g.items.map(x => x.n).join(' + ')).join('; ') + '; each denotes the vector sum of the listed component fields.';
     if (o.method === 'coord') return VA.coordSteps(o, d, steps);
     const g0 = groups.find(g => g.type === 'pair' && !g.unequal || g.type === 'plane');
     if (parts.length > 2 && g0) {
@@ -188,7 +202,7 @@
     return { id: 'angle', g, title: 'Find the angle between ' + a.n + ' and ' + b.n, th,
       text: 'In triangle ' + a.label + pn + b.label + ', the law of cosines gives ' + geoName + '. ' +
         (same ? 'The two sources have the same sign, so the angle between ' + a.n + ' and ' + b.n + ' equals ' + geoName + '.' : 'The two sources have opposite signs, so the angle between ' + a.n + ' and ' + b.n + ' is the supplement of ' + geoName + '.'),
-      tex: R`\cos\angle ${a.label}${pn}${b.label}=\frac{r_{${a.label}}^2+r_{${b.label}}^2-|${a.label}${b.label}|^2}{2r_{${a.label}}r_{${b.label}}}=${VA.texV(cg)}\quad\theta=${same ? '' : '180^\\circ-'}\angle ${a.label}${pn}${b.label}=${f4(th)}^\circ`,
+      tex: R`\cos\angle ${a.label}${pn}${b.label}=\frac{r_{${a.label}}^2+r_{${b.label}}^2-|${a.label}${b.label}|^2}{2r_{${a.label}}r_{${b.label}}}=${VA.texV(cg)}\quad\theta=${same ? '' : '180^\\circ-'}\angle ${a.label}${pn}${b.label}${VA.valueEq(th)}^\circ`,
       view: inl ? V.cross(V.sub(a.p, d.P), V.sub(b.p, d.P)) : null };
   };
   // ---- Similar-triangle method: two sources at equal distance from the field point, with charges of equal magnitude, not collinear with the field point ----
@@ -221,7 +235,7 @@
       text = pos.n + ' points from ' + pos.label + ' to ' + pn + ' and ' + neg.n + ' points from ' + pn + ' to ' + neg.label + '. Both have magnitude E₀, and ' + pn + pos.label + ' = ' + pn + neg.label + ' = r. ' +
         'Translate ' + neg.n + ' to the tip of ' + pos.n + '. Two sides of the vector triangle are parallel to ' + pos.label + pn + ' and ' + pn + neg.label + ', and their ratio equals ' + pn + pos.label + ' : ' + pn + neg.label + ', so the vector triangle is similar to triangle ' + tri + ', with similarity ratio E₀/r. ' +
         'Corresponding angles of similar triangles are equal: the angle between ' + nm + ' and ' + pos.n + ' equals ' + base + ', and the angle θ between the two component fields is the supplement of ' + apexN + '.';
-      tex = R`\cos\angle ${pn}${pos.label}${neg.label}=\frac{|${pos.label}${neg.label}|/2}{r}=${VA.texV(s.ab / 2 / s.r)}\qquad\cos\angle ${s.a.label}${pn}${s.b.label}=${VA.texV((2 * s.r * s.r - s.ab * s.ab) / (2 * s.r * s.r))}\quad\theta=180^\circ-\angle ${s.a.label}${pn}${s.b.label}=${f4(s.th)}^\circ`;
+      tex = R`\cos\angle ${pn}${pos.label}${neg.label}=\frac{|${pos.label}${neg.label}|/2}{r}=${VA.texV(s.ab / 2 / s.r)}\qquad\cos\angle ${s.a.label}${pn}${s.b.label}=${VA.texV((2 * s.r * s.r - s.ab * s.ab) / (2 * s.r * s.r))}\quad\theta=180^\circ-\angle ${s.a.label}${pn}${s.b.label}${VA.valueEq(s.th)}^\circ`;
       ask = { q: 'In which direction does ' + nm + ' point?', options: [right, 'from ' + neg.label + ' to ' + pos.label, 'from ' + pn + ' to the midpoint of ' + pos.label + neg.label].sort(), a: right,
         why: 'The vector triangle is similar to triangle ' + tri + ', and ' + nm + ' corresponds to side ' + pos.label + neg.label + ', so ' + nm + ' points ' + right + '.' };
     } else {
@@ -229,11 +243,11 @@
       text = 'Let ' + mn + ' be the midpoint of ' + s.a.label + s.b.label + '. The two component fields have magnitude E₀, so the parallelogram with them as adjacent sides is a rhombus, and its diagonal ' + nm + ' bisects the angle between them. ' +
         'The triangle formed by half of the rhombus (sides ' + s.a.n + ' and ' + nm + '/2) is similar to triangle ' + tri + ', with similarity ratio E₀/r. ' +
         'Corresponding angles of similar triangles are equal: the angle between ' + nm + ' and ' + s.a.n + ' equals ∠' + s.a.label + pn + mn + ', and the angle θ between the two component fields equals ' + apexN + '.';
-      tex = R`|${pn}${mn}|=\sqrt{r^2-(|${s.a.label}${s.b.label}|/2)^2}=${VA.texV(s.pm)}\qquad\cos\angle ${s.a.label}${pn}${mn}=\frac{|${pn}${mn}|}{r}=${VA.texV(s.pm / s.r)}\quad\theta=\angle ${s.a.label}${pn}${s.b.label}=${f4(s.th)}^\circ`;
+      tex = R`|${pn}${mn}|=\sqrt{r^2-(|${s.a.label}${s.b.label}|/2)^2}${VA.valueEq(s.pm, d.rU)}\qquad\cos\angle ${s.a.label}${pn}${mn}=\frac{|${pn}${mn}|}{r}=${VA.texV(s.pm / s.r)}\quad\theta=\angle ${s.a.label}${pn}${s.b.label}${VA.valueEq(s.th)}^\circ`;
       ask = { q: 'In which direction does ' + nm + ' point?', options: [right, toP ? 'from ' + pn + ' to ' + mn : 'from ' + mn + ' to ' + pn, 'from ' + s.a.label + ' to ' + s.b.label].sort(), a: right,
         why: 'The diagonal ' + nm + ' of the rhombus corresponds to side ' + mn + pn + ' of triangle ' + tri + '. Both sources are ' + (toP ? 'positive, so ' : 'negative, so ') + nm + ' points ' + right + '.' };
     }
-    tex = R`r=|${pn}${s.a.label}|=|${pn}${s.b.label}|=${VA.texV(s.r)},\quad E_0=|\vec ${s.a.n}|=|\vec ${s.b.n}|=\frac{k|q|}{r^2}=${VA.texV(s.E)}\qquad ` + tex;
+    tex = R`r=|${pn}${s.a.label}|=|${pn}${s.b.label}|${VA.valueEq(s.r, d.rU)},\quad E_0=|\vec ${s.a.n}|=|\vec ${s.b.n}|=\frac{k|q|}{r^2}${VA.valueEq(s.E, d.unit)}\qquad ` + tex;
     return { id: 'similar', g, sim: s, th: s.th, title: 'Combine ' + s.a.n + ' and ' + s.b.n + ' using similar triangles', text, tex, ask,
       setup: 'Let ' + mn + ' be the midpoint of segment ' + s.a.label + s.b.label + '.',
       view: V.cross(V.sub(s.a.p, d.P), V.sub(s.b.p, d.P)) };
@@ -244,9 +258,9 @@
       ? 'In similar triangles corresponding sides are proportional, so |' + nm + '| : E₀ = ' + s.pos.label + s.neg.label + ' : r. Hence |' + nm + '| = E₀ × ' + s.pos.label + s.neg.label + '/r, and |' + nm + '| ' + isV(L) + '.'
       : 'In similar triangles corresponding sides are proportional, so |' + nm + '|/2 : E₀ = ' + pn + s.mn + ' : r. Hence |' + nm + '| = 2E₀ × ' + pn + s.mn + '/r, and |' + nm + '| ' + isV(L) + '.';
     const tex = s.opp
-      ? R`|${g.tex}|=E_0\cdot\frac{|${s.pos.label}${s.neg.label}|}{r}=${VA.texV(s.E)}\times${VA.texV(s.ab / s.r)}=${VA.texV(L)}`
-      : R`|${g.tex}|=2E_0\cdot\frac{|${pn}${s.mn}|}{r}=2\times${VA.texV(s.E)}\times${VA.texV(s.pm / s.r)}=${VA.texV(L)}`;
-    return { id: 'pairSum', g, sim: s, title: 'Find the magnitude and direction of ' + nm, hide, view: V.cross(s.a.E, s.b.E), text: text + (D ? ' ' + nm + ' points ' + D + '.' : ''), tex: R`r=|${pn}${s.a.label}|=|${pn}${s.b.label}|=${VA.texV(s.r)},\quad E_0=\frac{k|q|}{r^2}=${VA.texV(s.E)}\qquad ` + tex };
+      ? R`|${g.tex}|=E_0\cdot\frac{|${s.pos.label}${s.neg.label}|}{r}${VA.valueEq(s.ab / s.r)}E_0${VA.valueEq(L, d.unit, vectorTerms(g.items, g.S))}`
+      : R`|${g.tex}|=2E_0\cdot\frac{|${pn}${s.mn}|}{r}${VA.valueEq(2 * s.pm / s.r)}E_0${VA.valueEq(L, d.unit, vectorTerms(g.items, g.S))}`;
+    return { id: 'pairSum', g, sim: s, title: 'Find the magnitude and direction of ' + nm, hide, view: V.cross(s.a.E, s.b.E), text: text + (D ? ' ' + nm + ' points ' + D + '.' : ''), tex: R`r=|${pn}${s.a.label}|=|${pn}${s.b.label}|${VA.valueEq(s.r, d.rU)},\quad E_0=\frac{k|q|}{r^2}${VA.valueEq(s.E, d.unit)}\qquad ` + tex };
   };
   VA.pairStep = function (g, d, hide, dir) {
     const [a, b] = g.items, eq = tol(a.mag, b.mag), zero = V.len(g.S) < 1e-12, D = zero ? null : dir(g.S);
@@ -255,7 +269,7 @@
       text: zero ? a.n + ' and ' + b.n + ' have equal magnitudes and opposite directions, so their vector sum ' + g.name + ' is zero.' :
         (col ? a.n + ' and ' + b.n + ' lie on the same line and point ' + (para ? 'the same way, so the magnitude of ' + g.name + ' is the sum of their magnitudes.' : 'in opposite directions, so the magnitude of ' + g.name + ' is the difference of their magnitudes, and ' + g.name + ' points the same way as the larger component field.')
           : 'Take ' + a.n + ' and ' + b.n + ' as adjacent sides of a parallelogram. The diagonal represents their vector sum ' + g.name + '.' + (eq ? ' The two component fields have equal magnitudes, so ' + g.name + ' lies along the bisector of the angle between them.' : '')) + (D ? ' ' + g.name + ' points ' + D + '.' : ''),
-      tex: R`E_1=|\vec ${a.n}|=${VA.texV(a.mag)},\quad E_2=|\vec ${b.n}|=${VA.texV(b.mag)}\qquad ` + (col && !zero ? R`|${g.tex}|=${para ? 'E_1+E_2' : '|E_1-E_2|'}=${VA.texV(V.len(g.S))}` : eq ? R`|${g.tex}|=2E_1\cos\frac{\theta}{2}=${VA.texV(V.len(g.S))}` : R`|${g.tex}|=\sqrt{E_1^2+E_2^2+2E_1E_2\cos\theta}=${VA.texV(V.len(g.S))}`) };
+      tex: R`E_1=|\vec ${a.n}|${VA.valueEq(a.mag, d.unit)},\quad E_2=|\vec ${b.n}|${VA.valueEq(b.mag, d.unit)}\qquad ` + (col && !zero ? R`|${g.tex}|=${para ? 'E_1+E_2' : '|E_1-E_2|'}${VA.valueEq(V.len(g.S), d.unit, vectorTerms(g.items, g.S))}` : eq ? R`|${g.tex}|=2E_1\cos\frac{\theta}{2}${VA.valueEq(V.len(g.S), d.unit, vectorTerms(g.items, g.S))}` : R`|${g.tex}|=\sqrt{E_1^2+E_2^2+2E_1E_2\cos\theta}${VA.valueEq(V.len(g.S), d.unit, vectorTerms(g.items, g.S))}`) };
   };
   VA.planeStep = function (g, d, hide) {
     const lb = g.items.map(x => x.label).join(''), pn = d.pn;
@@ -274,14 +288,14 @@
     const dot = pairs.reduce((sum, p) => sum + p.c, 0);
     return { pairs, dot, squared: items.reduce((sum, a) => sum + a.mag * a.mag, 0) + 2 * dot };
   };
-  const proofRows = p => [['Source pair', 'r_i', 'r_j', 'd_ij', 'C_ij']].concat(p.pairs.map(x => [x.a.label + ' / ' + x.b.label, VA.cell(x.a.r), VA.cell(x.b.r), VA.cell(x.distance), VA.cell(x.c)]));
+  const proofRows = (p, d) => [['Source pair', 'r_i/' + d.rU, 'r_j/' + d.rU, 'd_ij/' + d.rU, 'C_ij/(' + d.unit + ')²']].concat(p.pairs.map(x => [x.a.label + ' / ' + x.b.label, tableNumber(x.a.r), tableNumber(x.b.r), tableNumber(x.distance), tableNumber(x.c)]));
   const proofTex = R`d_{ij}=|S_iS_j|,\quad C_{ij}=\vec E_i\cdot\vec E_j=\frac{k^2q_iq_j(r_i^2+r_j^2-d_{ij}^2)}{2r_i^3r_j^3}`;
   const proofText = 'Let r_i be the distance from the field point to source S_i, and d_ij the source separation. The law of cosines in the triangle formed by the two sources and the field point, with the charge signs, gives C_ij. The table lists the three lengths and C_ij in normalized platform units, k=1. Decimal readings are rounded; calculations use unrounded values.';
   VA.chainStep = function (g, d, hide, dir, unit) {
     const proof = lengthProof(g.items), D = V.len(g.S) > 1e-12 ? dir(g.S) : null;
     return { id: 'chainSum', g, proof, title: 'Find from distances: ' + g.name, hide, view: g.n || null,
-      text: proofText + ' Place the component fields tip to tail. Expanding the squared vector sum determines its magnitude from lengths, without first finding a numerical angle.' + (D ? ' ' + g.name + ' points ' + D + '.' : ''), rows: proofRows(proof),
-      tex: proofTex + R`\qquad |${g.tex}|^2=\sum_i E_i^2+2\sum_{i<j}C_{ij}=${VA.texV(g.items.reduce((s, a) => s + a.mag * a.mag, 0))}+2(${VA.texV(proof.dot)})=${VA.texV(Math.max(0, proof.squared))}\qquad |${g.tex}|=${VA.texV(V.len(g.S))}` };
+      text: proofText + ' Place the component fields tip to tail. Expanding the squared vector sum determines its magnitude from lengths, without first finding a numerical angle.' + (D ? ' ' + g.name + ' points ' + D + '.' : ''), rows: proofRows(proof, d),
+      tex: proofTex + R`\qquad |${g.tex}|^2=\sum_i E_i^2+2\sum_{i<j}C_{ij}\qquad\frac{|${g.tex}|^2}{(${d.unit.replace(/²/g, '^2')})^2}${VA.valueEq(Math.max(0, proof.squared), '', g.items.map(a => a.mag * a.mag).concat(proof.pairs.map(x => 2 * x.c)))}\qquad |${g.tex}|${VA.valueEq(V.len(g.S), d.unit, vectorTerms(g.items, g.S))}` };
   };
 
   // This construction applies only when all six edges form a regular tetrahedron.
@@ -303,14 +317,14 @@
     const shared = { tetra, hide, view: V.cross(V.sub(m.mid, d.P), V.sub(c.p, d.P)) };
     return [
       { ...shared, id: 'tetraHeight', title: 'Derive the tetrahedron lengths first',
-        text: a.label + b.label + cn + pn + ' has six equal edges a, so it is a regular tetrahedron. ' + mn + ' is the midpoint of ' + a.label + b.label + ' and ' + gn + ' the base centroid. Each isosceles median is an altitude; the centroid divides a median in the ratio 2:1. Since ' + pn + ' is equidistant from the base vertices, its perpendicular foot is the base center ' + gn + '. Use Pythagoras for the height.',
-        tex: R`a=|${pn}${a.label}|=|${pn}${b.label}|=|${pn}${cn}|=|${a.label}${b.label}|=|${a.label}${cn}|=|${b.label}${cn}|\qquad |${pn}${mn}|=|${cn}${mn}|=\frac{\sqrt3}{2}a,\quad |${cn}${gn}|=\frac23|${cn}${mn}|=\frac{a}{\sqrt3}\qquad |${pn}${gn}|=\sqrt{a^2-|${cn}${gn}|^2}=\sqrt{\frac23}a` },
+        text: a.label + b.label + cn + pn + ' has six equal edges a, so it is a regular tetrahedron. ' + mn + ' is the midpoint of ' + a.label + b.label + ' and ' + gn + ' the base centroid. Reuse the length ' + pn + mn + ' found earlier. Each isosceles median is an altitude; the centroid divides a median in the ratio 2:1. Since ' + pn + ' is equidistant from the base vertices, its perpendicular foot is the base center ' + gn + '. Use Pythagoras for the height.',
+        tex: R`a=|${pn}${a.label}|=|${pn}${b.label}|=|${pn}${cn}|=|${a.label}${b.label}|=|${a.label}${cn}|=|${b.label}${cn}|\qquad |${cn}${mn}|=\frac{\sqrt3}{2}a,\quad |${cn}${gn}|=\frac23|${cn}${mn}|=\frac{a}{\sqrt3}\qquad |${pn}${gn}|=\sqrt{a^2-|${cn}${gn}|^2}=\sqrt{\frac23}a` },
       { ...shared, id: 'tetraSimilar', title: 'Construct a similar vector triangle',
         text: 'Extend ' + cn + pn + ' beyond ' + pn + ' to ' + hn + ', with ' + pn + hn + '=a/2. Points ' + cn + ', ' + gn + ', ' + mn + ' are collinear, as are ' + cn + ', ' + pn + ', ' + hn + '. The triangles share the included angle at ' + cn + ' and both adjacent-side ratios are 3/2. SAS similarity therefore gives the third side.',
         tex: R`|${pn}${hn}|=\frac a2,\quad |${cn}${hn}|=\frac32a,\quad\frac{|${cn}${mn}|}{|${cn}${gn}|}=\frac{|${cn}${hn}|}{|${cn}${pn}|}=\frac32\qquad △ ${cn}${mn}${hn}\sim△ ${cn}${gn}${pn},\quad |${mn}${hn}|=\frac32|${gn}${pn}|=\frac{\sqrt6}{2}a` },
       { ...shared, id: 'combine', title: 'Obtain the resultant from side ratios',
         text: pair.name + ' corresponds to ' + mn + '→' + pn + '; after translation ' + single.name + ' corresponds to ' + pn + '→' + hn + ' with the same scale factor. Their sum corresponds to ' + mn + '→' + hn + '. The side ratio √3:1:√6 gives the resultant magnitude directly. For negative charges all corresponding vectors reverse, preserving the lengths.',
-        tex: R`E_0=\frac{k|q|}{a^2},\quad ${pair.tex}=\frac{2kq}{a^3}\vec{${mn}${pn}},\quad ${single.tex}=\frac{2kq}{a^3}\vec{${pn}${hn}}\qquad |${pair.tex}|:|${single.tex}|:|\vec E|=|${mn}${pn}|:|${pn}${hn}|:|${mn}${hn}|=\sqrt3:1:\sqrt6\qquad |\vec E|=\sqrt6 E_0=${VA.texV(V.len(d.T))}` }
+        tex: R`E_0=\frac{k|q|}{a^2},\quad ${pair.tex}=\frac{2kq}{a^3}\vec{${mn}${pn}},\quad ${single.tex}=\frac{2kq}{a^3}\vec{${pn}${hn}}\qquad |${pair.tex}|:|${single.tex}|:|\vec E|=|${mn}${pn}|:|${pn}${hn}|:|${mn}${hn}|=\sqrt3:1:\sqrt6\qquad |\vec E|=\sqrt6 E_0${VA.valueEq(V.len(d.T), d.unit, vectorTerms(d.parts, d.T))}` }
     ];
   };
   VA.combineStep = function (d, hide, dir, unit) {
@@ -318,29 +332,29 @@
     const proof = two ? lengthProof(G[0].items, G[1].items) : lengthProof(d.parts);
     const base = two ? V.dot(G[0].S, G[0].S) + V.dot(G[1].S, G[1].S) : d.parts.reduce((sum, a) => sum + a.mag * a.mag, 0);
     proof.squared = base + 2 * proof.dot;
-    const square = two ? R`D=${G[0].tex}\cdot ${G[1].tex}=\sum C_{ij}=${VA.texV(proof.dot)}\qquad |\vec E|^2=|${G[0].tex}|^2+|${G[1].tex}|^2+2D` : R`|\vec E|^2=\sum_i E_i^2+2\sum_{i<j}C_{ij}`;
+    const square = two ? R`D=${G[0].tex}\cdot ${G[1].tex}=\sum C_{ij}\qquad\frac{D}{(${d.unit.replace(/²/g, '^2')})^2}${VA.valueEq(proof.dot, '', proof.pairs.map(x => x.c))}\qquad |\vec E|^2=|${G[0].tex}|^2+|${G[1].tex}|^2+2D` : R`|\vec E|^2=\sum_i E_i^2+2\sum_{i<j}C_{ij}`;
     const D = V.len(d.T) > 1e-12 ? dir(d.T) : null;
     return { id: 'combine', proof, title: 'Combine partial sums using known distances', hide,
       view: two && V.len(V.cross(G[0].S, G[1].S)) > 1e-12 ? V.cross(G[0].S, G[1].S) : null,
-      text: proofText + (two ? ' By distributivity, adding C_ij across the two groups gives their scalar product D. Expand the squared resultant to find its magnitude; the Pythagorean theorem applies when D=0.' : ' Expand the squared sum of all component fields. This distance identity also covers vanishing groups and more than two remaining partial sums.') + (D ? ' The net field points ' + D + '.' : ''), rows: proofRows(proof),
-      tex: proofTex + R`\qquad ` + square + R`=${VA.texV(base)}+2(${VA.texV(proof.dot)})=${VA.texV(Math.max(0, proof.squared))}\qquad |\vec E|=${VA.texV(V.len(d.T))}` };
+      text: proofText + (two ? ' By distributivity, adding C_ij across the two groups gives their scalar product D. Expand the squared resultant to find its magnitude; the Pythagorean theorem applies when D=0.' : ' Expand the squared sum of all component fields. This distance identity also covers vanishing groups and more than two remaining partial sums.') + (D ? ' The net field points ' + D + '.' : ''), rows: proofRows(proof, d),
+      tex: proofTex + R`\qquad ` + square + R`\qquad\frac{|\vec E|^2}{(${d.unit.replace(/²/g, '^2')})^2}${VA.valueEq(Math.max(0, proof.squared), '', (two ? G.map(g => V.dot(g.S, g.S)) : d.parts.map(a => a.mag * a.mag)).concat(proof.pairs.map(x => 2 * x.c)))}\qquad |\vec E|${VA.valueEq(V.len(d.T), d.unit, vectorTerms(d.parts, d.T))}` };
   };
   VA.checkStep = function (d, unit) {
     const D = VA.describe(d.T, d.named), T = d.T;
     return { id: 'check', title: 'Check the result with the coordinate method', view: 'reset',
       text: (V.len(T) < 1e-12 ? (d.partial ? 'The vector sum of the selected component fields is zero.' : 'The net field at ' + d.pn + ' is zero.') : (d.partial ? 'The magnitude of the vector sum of the selected component fields ' : 'The magnitude of the net field at ' + d.pn + ' ') + isV(V.len(T)) + ' ' + unit + (D ? ', and it points ' + D : '') + '.') + ' Adding the x, y and z components of the component fields separately gives the same result as the geometric method.',
-      rows: [['', 'E_x', 'E_y', 'E_z']].concat(d.parts.map(x => [x.n, VA.cell(x.E[0]), VA.cell(x.E[1]), VA.cell(x.E[2])]), [['Total', VA.cell(T[0]), VA.cell(T[1]), VA.cell(T[2])]]),
-      tex: R`|\vec E|=\sqrt{E_x^2+E_y^2+E_z^2}=${VA.texV(V.len(T))}` };
+      rows: [['', 'E_x/(' + d.unit + ')', 'E_y/(' + d.unit + ')', 'E_z/(' + d.unit + ')']].concat(d.parts.map(x => [x.n, tableNumber(x.E[0]), tableNumber(x.E[1]), tableNumber(x.E[2])]), [['Total', tableNumber(T[0]), tableNumber(T[1]), tableNumber(T[2])]]),
+      tex: R`|\vec E|=\sqrt{E_x^2+E_y^2+E_z^2}${VA.valueEq(V.len(T), d.unit, vectorTerms(d.parts, T))}` };
   };
   VA.coordSteps = function (o, d, steps) {
     const T = d.T;
     steps.push({ id: 'coordR', title: 'Find the relative position vectors', text: 'The vector from each source to ' + d.pn + ' is d_i. It equals the position vector of ' + d.pn + ' minus the position vector of the source, and its length is the distance r_i.',
-      rows: [['Source', 'd_x', 'd_y', 'd_z', 'r']].concat(d.parts.map(x => [x.label, VA.cell(x.d[0]), VA.cell(x.d[1]), VA.cell(x.d[2]), VA.cell(x.r)])), tex: R`\vec E_i=\frac{kq_i\,\vec d_i}{r_i^3}` });
+      rows: [['Source', 'd_x/' + d.rU, 'd_y/' + d.rU, 'd_z/' + d.rU, 'r/' + d.rU]].concat(d.parts.map(x => [x.label, tableNumber(x.d[0]), tableNumber(x.d[1]), tableNumber(x.d[2]), tableNumber(x.r)])), tex: R`\vec E_i=\frac{kq_i\,\vec d_i}{r_i^3}` });
     steps.push({ id: 'coordE', title: 'Sum the components', text: 'Adding the x, y and z components of the component fields separately gives the x, y and z components of the net field.',
-      rows: [['', 'E_x', 'E_y', 'E_z']].concat(d.parts.map(x => [x.n, VA.cell(x.E[0]), VA.cell(x.E[1]), VA.cell(x.E[2])]), [['Total', VA.cell(T[0]), VA.cell(T[1]), VA.cell(T[2])]]) });
+      rows: [['', 'E_x/(' + d.unit + ')', 'E_y/(' + d.unit + ')', 'E_z/(' + d.unit + ')']].concat(d.parts.map(x => [x.n, tableNumber(x.E[0]), tableNumber(x.E[1]), tableNumber(x.E[2])]), [['Total', tableNumber(T[0]), tableNumber(T[1]), tableNumber(T[2])]]) });
     const D = VA.describe(T, d.named);
     steps.push({ id: 'check', title: 'Find the magnitude and direction of the net field', view: 'reset', text: V.len(T) < 1e-12 ? 'All three component sums are zero, so ' + (d.partial ? 'the vector sum of the selected component fields is zero.' : 'the net field at ' + d.pn + ' is zero.') : (d.partial ? 'The magnitude of the vector sum of the selected component fields ' : 'The magnitude of the net field at ' + d.pn + ' ') + isV(V.len(T)) + ' ' + (o.unit || 'kQ/L²') + (D ? ', and it points ' + D : '') + '.',
-      tex: R`|\vec E|=\sqrt{E_x^2+E_y^2+E_z^2}=${VA.texV(V.len(T))}` });
+      tex: R`|\vec E|=\sqrt{E_x^2+E_y^2+E_z^2}${VA.valueEq(V.len(T), d.unit, vectorTerms(d.parts, T))}` });
     steps.d = d;
     return steps;
   };
@@ -464,6 +478,7 @@
     let html = '';
     if (s.rows) html += '<table class="cap-tbl">' + s.rows.map((r, i) => '<tr>' + r.map(c => (i ? '<td>' : '<th>') + U.rich(c) + (i ? '</td>' : '</th>')).join('') + '</tr>').join('') + '</table>';
     if (s.tex) html += '<div class="cap-m' + (s.proof || s.tetra ? ' cap-proof' : '') + '">' + EL.texBlock(s.tex) + '</div>';
+    if (s.advanced) html += '<details class="cap-advanced"><summary>Advanced: calculation check</summary>' + (s.advanced.text ? '<p>' + U.rich(s.advanced.text) + '</p>' : '') + VA.stepHTML(s.advanced) + '</details>';
     return html;
   };
 })(window.EL);

@@ -96,7 +96,8 @@
       if (q.t !== 'trend' && (ea || eb)) return { q, ok: false, err: (ea ? q.a : q.b) + ' coincides with a source, so the potential there is undefined.' };
       if (q.t === 'trend' && ea && eb) return { q, ok: false, err: 'Both endpoints coincide with sources, so the potential change cannot be discussed.' };
       const va = ea ? NaN : Vat(src, a), vb = eb ? NaN : Vat(src, b);
-      o.va = va; o.vb = vb; o.endSrc = ea ? q.a : eb ? q.b : null;
+      o.va = va; o.vb = vb;
+      if (q.t !== 'trend') { o.vaTerms = src.map(source => source.q / V.dist(a, source.p)); o.vbTerms = src.map(source => source.q / V.dist(b, source.p)); } o.endSrc = ea ? q.a : eb ? q.b : null;
       if (o.endSrc) { const ep = ea ? a : b, s0 = src.find(s => V.dist(ep, s.p) < 1e-9); o.endQ = s0 ? s0.q : 0; }
       if (q.t === 'Vcmp') X.cmpAnswer(o, q, va, vb);
       if (q.t === 'W') {
@@ -120,8 +121,9 @@
   };
   X.trendAnswer = function (o, vs) {
     const dv = vs.slice(1).map((v, i) => v - vs[i]), eps = 1e-10, up = dv.every(x => x > -eps), dn = dv.every(x => x < eps);
-    const flat = dv.every(x => Math.abs(x) < eps), turns = dv.reduce((n, x, i) => i && Math.sign(x) !== Math.sign(dv[i - 1]) && Math.abs(x) > eps ? n + 1 : n, 0);
-    o.answer = flat ? 'stays constant' : up ? 'increases throughout' : dn ? 'decreases throughout' : turns === 1 ? (dv[0] > 0 ? 'rises then falls' : 'falls then rises') : 'fluctuates';
+    const flat = dv.every(x => Math.abs(x) < eps);
+    const signs = dv.filter(x => Math.abs(x) > eps).map(Math.sign).filter((x, i, all) => !i || x !== all[i - 1]), turns = Math.max(0, signs.length - 1);
+    o.answer = flat ? 'stays constant' : up ? 'increases throughout' : dn ? 'decreases throughout' : turns === 1 ? (signs[0] > 0 ? 'rises then falls' : 'falls then rises') : signs.map(x => x > 0 ? 'rises' : 'falls').join(', then ');
     o.options = ['increases throughout', 'decreases throughout', 'rises then falls', 'falls then rises'];
     // There are always exactly four options, A to D: when the answer is not one of the usual four, it replaces "falls then rises"
     if (!o.options.includes(o.answer)) o.options[3] = o.answer;
@@ -174,6 +176,8 @@
       }
       const o = X.answer(pb, R, q);
       if (X.exactAnswer) X.exactAnswer(pb, R, o);
+      o.units = R.units;
+      if (o.ok && R.analytic && q.t !== 'trend' && X.analyticSteps) o.expl = X.analyticSteps(pb, R, o);
       X.fieldChoices(R, o);
       if (o.ok && q.t === 'trend') o.expl = X.pathSteps(pb, R, o, 0.3).map(st => ({ t: st.title + ': ' + st.text, tex: st.tex, rows: st.rows }));
       return o;
@@ -216,18 +220,18 @@
   };
   // Solution: short sentences + formulas (one per line)
   X.explain = function (o) {
-    const q = o.q, L = [];
+    const q = o.q, L = [], units = o.units || {};
     if (!o.ok) return [{ t: o.err }];
     if (o.expl) return o.expl;
     if (q.t === 'E' || q.t === 'Ezero' || q.t === 'angle') {
       for (const s of o.plan) if (s.id !== 'list' && s.id !== 'group') L.push({ t: s.title + ': ' + s.text, tex: s.tex, rows: s.rows });
-      if (q.t === 'angle') L.push({ t: 'For direction ' + q.a + '→' + q.b + ', let u be its displacement vector. The scalar product gives the angle after the resultant has been derived: ' + o.answer + '.', tex: String.raw`\vec u=\vec r_{${q.b}}-\vec r_{${q.a}},\qquad\cos\alpha=\frac{\vec E\cdot\vec u}{|\vec E||\vec u|}=${numTex(Math.cos(o.value * Math.PI / 180))},\qquad\alpha=${f4(o.value)}^\circ` });
+      if (q.t === 'angle') L.push({ t: 'For direction ' + q.a + '→' + q.b + ', let u be its displacement vector. The scalar product gives the angle after the resultant has been derived: ' + o.answer + '.', tex: String.raw`\vec u=\vec r_{${q.b}}-\vec r_{${q.a}},\qquad\cos\alpha=\frac{\vec E\cdot\vec u}{|\vec E||\vec u|}${VA.valueEq(Math.cos(o.value * Math.PI / 180))},\qquad\alpha${VA.valueEq(o.value)}^\circ` });
     } else if (q.t === 'V') {
-      L.push({ t: 'Potential is a scalar. The potential at ' + q.at + ' is the algebraic sum of the potentials that each source produces there alone. Positive sources contribute positively and negative sources negatively.', tex:String.raw`\varphi_{${q.at}}=\sum_i\frac{kq_i}{r_i}=` + o.terms.map(x => (x.q < 0 ? '-' : '+') + numTex(Math.abs(x.v))).join('').replace(/^\+/, '') + '=' + (o.exactTex || numTex(o.value)) });
+      L.push({ t: 'Potential is a scalar. The potential at ' + q.at + ' is the algebraic sum of the potentials that each source produces there alone. Positive sources contribute positively and negative sources negatively.', tex:String.raw`\varphi_{${q.at}}=\sum_i\frac{kq_i}{r_i}${VA.valueEq(o.value, units.V, o.terms.map(x => x.v))}` });
     } else if (q.t === 'Vcmp') {
-      L.push({ t: 'Calculate the potentials at ' + q.a + ' and ' + q.b + ' separately.', tex: String.raw`\varphi_{${q.a}}=${numTex(o.va)},\quad\varphi_{${q.b}}=${numTex(o.vb)}` }, { t: 'Therefore ' + o.answer + '.' });
+      L.push({ t: 'Calculate the potentials at ' + q.a + ' and ' + q.b + ' separately.', tex: String.raw`\varphi_{${q.a}}${VA.valueEq(o.va, units.V, o.vaTerms)},\quad\varphi_{${q.b}}${VA.valueEq(o.vb, units.V, o.vbTerms)}` }, { t: 'Therefore ' + o.answer + '.' });
     } else if (q.t === 'W') {
-      L.push({ t: 'The work done by the electric force equals the test charge times the potential difference between the start and end points: W = q(φ_' + q.a + ' − φ_' + q.b + ').', tex:String.raw`W=q(\varphi_{${q.a}}-\varphi_{${q.b}})=${numTex(q.q0 || 1)}\times(${numTex(o.va)}-(${numTex(o.vb)}))=${o.exactTex || numTex(o.value)}` });
+      L.push({ t: 'The work done by the electric force equals the test charge times the potential difference between the start and end points: W = q(φ_' + q.a + ' − φ_' + q.b + ').', tex:String.raw`W=q(\varphi_{${q.a}}-\varphi_{${q.b}})${VA.valueEq(o.value, units.W, o.vaTerms?.map(x => x * (q.q0 || 1)).concat(o.vbTerms.map(x => -x * (q.q0 || 1))))}` });
     } else if (q.t === 'trend') {
       L.push({ t: 'Let E_∥ be the component of the net field along the path. Where E_∥ is positive, the potential decreases along the path. Where E_∥ is negative, the potential increases. Click "Guided exploration" and drag the point X along the path to watch the angle between the net field and the path direction.' },
         { t: 'So from ' + q.a + ' to ' + q.b + ', the potential ' + o.answer + '.' + (o.endSrc ? ' The endpoint ' + o.endSrc + ' is a ' + (o.endQ > 0 ? 'positive' : 'negative') + ' source, and the potential tends to ' + (o.endQ > 0 ? 'positive' : 'negative') + ' infinity as the path approaches it.' : '') });

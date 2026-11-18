@@ -18,15 +18,24 @@
     T.d = pb ? JSON.parse(JSON.stringify(pb)) : blank(key);
     if (pb) { T.d.model = X.modelOf(pb); T.d.kind = X.kindOf(pb); }
     if (pb && !String(pb.id).startsWith('my-')) { T.d.id = 'my-' + Date.now().toString(36); T.d.title = pb.title + ' (adapted)'; delete T.d.src; }
-    T.step = pb ? 3 : key ? 1 : 0; T.focus = null; T.render();
+    T.step = pb ? 3 : 0; T.focus = null; T.render();
   };
   T.sol = () => X.solve(T.d);
+  T.ready = function (through = 4) {
+    const status = X.problemStatus(T.d), first = status.findIndex((error, i) => i <= through && error);
+    if (first < 0) return true;
+    U.toast(status[first]); T.step = first; T.render(); return false;
+  };
+  T.go = function (step) {
+    if (step > T.step && !T.ready(step - 1)) return;
+    T.step = step; T.render();
+  };
   T.render = function () {
-    const d = T.d, sol = T.sol();
-    U.$('#tSteps').replaceChildren(...STEPS.map((s, i) => h('li', { class: (i === T.step ? 'on' : '') + (i < T.step ? ' done' : '') }, h('button', { type: 'button', onclick: () => { T.step = i; T.render(); } }, h('span.n', null, i + 1), s))));
+    const d = T.d, sol = T.sol(), status = X.problemStatus(d, sol);
+    U.$('#tSteps').replaceChildren(...STEPS.map((s, i) => h('li', { class: (i === T.step ? 'on' : '') + (i < T.step && !status[i] ? ' done' : '') }, h('button', { type: 'button', 'aria-current': i === T.step ? 'step' : null, onclick: () => T.go(i) }, h('span.n', null, i + 1), s))));
     const f = [T.f0, T.f1, T.f2, T.f3, T.f4][T.step];
     U.$('#tForm').replaceChildren(h('h2', null, STEPS[T.step]), h('p.t-model', null, 'Current model: ' + X.modelName(d)), ...f(d, sol).filter(Boolean), h('div.btns.tnav', null,
-      T.step > 0 ? K.btn('‹ Back', () => { T.step--; T.render(); }) : null, T.step < 4 ? K.btn('Next ›', () => { T.step++; T.render(); }, 'primary') : null));
+      T.step > 0 ? K.btn('‹ Back', () => { T.go(T.step - 1); }) : null, T.step < 4 ? K.btn('Next ›', () => { T.go(T.step + 1); }, 'primary') : null));
     T.assist(d, sol);
     W.show(d, sol, T.focus || null);
   };
@@ -114,8 +123,8 @@
     const cand = X.candidates(g).filter(c => !used.includes(JSON.stringify(c.def)));
     let sel = 0; const xyz = [0, 0, 0];
     return [
-      sug.length ? h('div.sug', null, h('h4', null, 'Suggested key points'), ...sug.filter(s => !used.includes(JSON.stringify(s.c.def))).slice(0, 4).map(s => h('div.row.wrap', null, h('span', null, s.c.text), h('em', null, s.why), K.btn('Add this point', () => add(s.c.def), 'mini primary')))) : null,
-      rows.length ? h('table.src', null, h('thead', null, h('tr', null, h('th', null, 'Name'), h('th', null, 'Position'), h('th'))), h('tbody', null, rows)) : K.note('No key points have been added yet.'),
+      sug.length ? h('div.sug', null, h('h4', null, 'Suggested key points'), ...sug.filter(s => !used.includes(JSON.stringify(s.c.def))).slice(0, 4).map(s => h('div.row.wrap', null, h('span', null, s.c.text + ' (' + freeName(d) + ')'), h('em', null, s.why), K.btn('Add this point', () => add(s.c.def), 'mini primary')))) : null,
+      rows.length ? h('table.src', null, h('thead', null, h('tr', null, h('th', null, 'Name'), h('th', null, 'Position'), h('th'))), h('tbody', null, rows)) : K.note(X.qtypesFor(d).some(t => !X.qtype(t).need.length) ? "Questions on total energy, pair count or boundary conditions do not need an observation point. Add points here for questions at a point." : "No key points have been added yet."),
       cand.length ? h('div.row.wrap', null, K.select('', cand.map((c, i) => [i, c.text]), 0, v => { sel = +v; }), K.btn('Add key point', () => cand[sel] && add(cand[sel].def), 'mini')) : null,
       h('details.tip', { open: X.kindOf(d) === 'field' }, h('summary', null, 'Add a key point by coordinates'), h('div.row.wrap', null, ...['x', 'y', 'z'].map((k, i) => h('label.mini', null, k, K.cell(0, 0.05, v => { xyz[i] = v; }, 3.4))),
         K.btn('Add this point', () => add({ t: 'xyz', p: xyz.slice() }), 'mini')), K.note('Coordinates are in units of ' + unit + ', with the origin at ' + (unit === 'a' ? 'the center of the model' : 'the coordinate origin O') + '.'))];
@@ -155,16 +164,17 @@
   T.f4 = function (d, sol) {
     const auto = X.stem(d, sol.R);
     return [h('label', { for: 'tTitle' }, 'Title'), h('input.cell.wide#tTitle', { type: 'text', value: d.title, oninput: e => { d.title = e.target.value; } }),
-      h('label', { for: 'tStem' }, 'Problem statement (leave blank to use the generated statement)'), h('textarea.wide#tStem', { rows: 5, placeholder: auto, value: d.stem || '', oninput: e => { d.stem = e.target.value; } }),
+      h('label', { for: 'tStem' }, 'Problem statement (leave blank to use the generated statement)'), h('textarea.wide#tStem', { rows: 5, placeholder: auto, oninput: e => { d.stem = e.target.value; } }, d.stem || ''),
       h('label', { for: 'tNote' }, 'Additional note'), h('input.cell.wide#tNote', { type: 'text', value: d.note || '', oninput: e => { d.note = e.target.value; } }),
-      h('div.btns', null, K.btn('Save problem', () => T.save(), 'primary'), K.btn('Preview student edition', () => { T.save(true); X.setMode('student'); X.open(JSON.parse(JSON.stringify(T.d))); })),
-      h('div.btns', null, K.btn('Export student edition', () => X.print(d, false)), K.btn('Export teacher edition', () => X.print(d, true)), K.btn('Export JSON', () => U.download('problem_' + safe(d.title) + '.json', JSON.stringify(d, null, 1), 'application/json')))];
+      h('div.btns', null, K.btn('Save problem', () => T.save(), 'primary'), K.btn('Preview student edition', () => { if (!T.save(true)) return; X.setMode('student'); X.open(JSON.parse(JSON.stringify(T.d))); })),
+      h('div.btns', null, K.btn('Export student edition', () => { if (T.ready()) X.print(d, false); }), K.btn('Export teacher edition', () => { if (T.ready()) X.print(d, true); }), K.btn('Export JSON', () => { if (T.ready()) U.download('problem_' + safe(d.title) + '.json', JSON.stringify(d, null, 1), 'application/json'); }))];
   };
   T.save = function (quiet) {
+    if (!T.ready()) return false;
     const mine = U.store.get('ex:mine', []), i = mine.findIndex(x => x.id === T.d.id), c = JSON.parse(JSON.stringify(T.d));
     c.model = X.modelOf(c); c.kind = X.kindOf(c);
     if (i >= 0) mine[i] = c; else mine.push(c);
-    U.store.set('ex:mine', mine); X.renderList(); if (!quiet) U.toast('Saved to "My problems".');
+    U.store.set('ex:mine', mine); X.renderList(); if (!quiet) U.toast('Saved to "My problems".'); return true;
   };
 
   // Assistant: diagnostics, next-step hints, and the answer and distractors for each question
@@ -172,12 +182,12 @@
     const k = X.kindOf(d), tips = [];
     const nQ = k === 'field' ? 1 : sol.R.sources.length;
     if (!nQ) tips.push({ k: 'bad', t: 'No point charge with a nonzero charge has been placed yet.' });
-    if (T.step >= 2 && !Object.keys(d.pts).length && k !== 'disk') tips.push({ k: 'info', t: 'Add a field point, or use one of the suggested points.' });
+    if (T.step >= 2 && X.problemStatus(d, sol)[2]) tips.push({ k: 'info', t: 'Add a field point, or use one of the suggested points.' });
     if (T.step >= 3 && !d.qs.length) tips.push({ k: 'info', t: 'Add at least one question.' });
     const diag = X.diagnose(d, sol).concat(tips);
     const ans = sol.ans.map((o, i) => o.ok ? h('div.ta', null, h('b', null, '(' + (i + 1) + ') ' + X.qtype(o.q.t).name),
       h('p', { html: (o.options ? X.optLetter(o.options, X.rightOf(o)) + '. ' : '') + U.rich(o.answer) }),
-      o.distractors && o.distractors.length ? h('ul', null, o.distractors.map(x => h('li', { html: (o.options ? X.optLetter(o.options, x.v) + '. ' : '') + U.rich(x.v) + ' <span class="muted">— ' + U.esc(x.why) + '</span>' }))) : null) : null);
+      o.distractors && o.distractors.length ? h('ul', null, o.distractors.slice().sort((a, b) => (o.options || []).indexOf(a.v) - (o.options || []).indexOf(b.v)).map(x => h('li', { html: (o.options ? X.optLetter(o.options, x.v) + '. ' : '') + U.rich(x.v) + ' <span class="muted">— ' + U.esc(x.why) + '</span>' }))) : null) : null);
     U.$('#tAssist').replaceChildren(...[h('h3', null, 'Authoring assistant'), h('ul.diag', null, diag.map(x => h('li', { class: x.k, html: U.rich(x.t) }))),
       sol.ans.length ? h('h4', null, 'Answers and distractors') : null, ...ans].filter(Boolean));
   };

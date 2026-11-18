@@ -57,17 +57,29 @@
     const v = k === 'tpl' ? ([4, 5, 6].includes(id) ? '' : X.TEMPLATES[pb.tpl].name) : k === 'field' ? EL.SUB08[pb.sub].name : k === 'free' ? 'Freely placed point charges' : 'N = ' + pb.disk.N;
     return (L ? L.code + ' ' + L.title : '') + (v ? ' · ' + v : '');
   };
-  X.valid = function (pb) {
-    const k = X.kindOf(pb);
-    if (k === 'tpl') return !!X.TEMPLATES[pb.tpl];
-    if (k === 'free') return Array.isArray(pb.srcs);
-    if (k === 'field') return !!(EL.SUB08[pb.sub] && pb.sp);
-    if (k === 'disk') return !!(pb.disk && isFinite(pb.disk.N));
-    return false;
+  X.problemStatus = function (pb, solved) {
+    const status = Array(5).fill(null), point = p => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite);
+    try {
+      if (!pb || !X.itemOf(X.itemKey(pb))) { status[0] = "Choose a valid model."; return status; }
+      const sol = solved || X.solve(pb), R = sol.R, qs = pb.qs || [];
+      if (!R.analytic && (!R.sources.length || R.sources.some(s => !Number.isFinite(s.q) || !point(s.p)))) status[1] = "Place at least one nonzero source charge.";
+      const intrinsic = X.qtypesFor(pb).some(t => !X.qtype(t).need.length);
+      const names = Object.keys(R.pts).filter(n => point(R.pts[n].p));
+      const observed = names.some(n => !R.sources.some(s => EL.V.dist(s.p, R.pts[n].p) < 1e-9));
+      if (Object.values(R.pts).some(p => !point(p.p)) || (!observed && !intrinsic)) status[2] = "Add a valid observation point.";
+      if (!qs.length) status[3] = "Add at least one question.";
+      else {
+        const bad = qs.findIndex((q, i) => !q || !X.qtype(q.t) || !X.qtype(q.t).need.every(k => k === 'q0' ? q.q0 == null || Number.isFinite(q.q0) : names.includes(q[k])) || !sol.ans[i] || !sol.ans[i].ok);
+        if (bad >= 0) status[3] = "Check the question points and calculation conditions: " + '(' + (bad + 1) + ') ' + (sol.ans[bad] && sol.ans[bad].err || '');
+      }
+      if (!String(pb.title || '').trim()) status[4] = "Enter a problem title.";
+    } catch (_) { status[1] = "The model or key-point data is invalid. Check the settings."; }
+    return status;
   };
+  X.valid = pb => !X.problemStatus(pb).some(Boolean);
 
   // ---- Problem library and lookup by model (used by the jump from the lab's "Worked problems") ----
-  X.library = () => X.BUILTIN.concat(U.store.get('ex:mine', []));
+  X.library = () => X.BUILTIN.concat(U.store.get('ex:mine', []).filter(X.valid));
   X.findByModel = (id, lib) => (lib || X.library()).find(pb => X.modelOf(pb) === +id) || null;
   // Option letters: A, B, C, D
   X.letter = i => String.fromCharCode(65 + i);

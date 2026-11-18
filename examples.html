@@ -29,9 +29,9 @@
     <aside class="ex-left">
       <div class="ex-only-s">
         <div id="exList" class="ex-list"></div>
-        <div class="btns"><button type="button" class="btn" id="btnNew">New problem</button><button type="button" class="btn" id="btnEdit">Adapt this problem</button></div>
+        <div class="ex-author-tools"><div class="btns"><button type="button" class="btn" id="btnNew">New problem</button><button type="button" class="btn" id="btnEdit">Adapt this problem</button></div>
         <div class="btns"><button type="button" class="btn mini" id="btnImport">Import problem</button><button type="button" class="btn mini" id="btnDel">Delete this problem</button></div>
-        <input type="file" id="importFile" accept=".json,application/json" hidden>
+        <input type="file" id="importFile" accept=".json,application/json" hidden></div>
       </div>
       <div class="ex-only-t"><ol id="tSteps" class="stepper"></ol><div id="tAssist" class="t-assist"></div></div>
     </aside>
@@ -41,15 +41,16 @@
         <div class="grain" aria-hidden="true"></div>
         <div id="labels" class="labels" aria-hidden="true"></div>
         <div class="tools" role="toolbar" aria-label="View tools">
-          <button type="button" id="btnHome" title="Reset to standard view" aria-label="Reset to standard view">⌂</button>
-          <button type="button" id="btnTop" title="Top view" aria-label="Top view">⊤</button>
+          <button type="button" id="btnHome" title="Reset to standard view" aria-label="Reset to standard view">Reset view</button>
+          <button type="button" id="btnTop" title="Top view" aria-label="Top view">Top view</button>
           <button type="button" id="btnZin" title="Zoom in" aria-label="Zoom in">＋</button>
           <button type="button" id="btnZout" title="Zoom out" aria-label="Zoom out">－</button>
-          <button type="button" id="btnFull" title="Toggle full screen" aria-label="Toggle full screen">⛶</button>
+          <button type="button" id="btnFull" title="Toggle full screen" aria-label="Toggle full screen">Fullscreen</button>
         </div>
-        <div class="stagebar"><div class="sb-mid"><span>Show</span></div><div class="sb-layers" id="sbLayers"></div><button type="button" id="btnTheme" class="theme-toggle" title="Switch canvas theme" aria-label="Switch canvas theme">◐</button></div>
+        <div class="stagebar"><div class="sb-mid"><span>Show</span></div><div class="sb-layers" id="sbLayers"></div><button type="button" id="btnTheme" class="theme-toggle" title="Switch canvas theme" aria-label="Switch canvas theme">Board theme</button></div>
       </div>
-      <div class="caption" id="caption" aria-live="polite" hidden></div>
+      <div class="caption" id="caption" hidden></div>
+      <div class="sr" id="guideStatus" role="status" aria-live="polite" aria-atomic="true"></div>
       <div id="elementStyle" class="element-style glass" hidden></div>
     </main>
     <aside class="ex-right">

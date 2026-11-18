@@ -69,14 +69,14 @@
     U.$('#btnZin').addEventListener('click', () => { W.r.cam.zoomAt(1 / 1.3, W.r.cam.w / 2, W.r.cam.h / 2); W.r.draw(); });
     U.$('#btnZout').addEventListener('click', () => { W.r.cam.zoomAt(1.3, W.r.cam.w / 2, W.r.cam.h / 2); W.r.draw(); });
     U.$('#btnFull').addEventListener('click', () => { const el = U.$('#stage').closest('.view'); document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen && el.requestFullscreen(); });
-    U.$('#btnNew').addEventListener('click', () => { X.T.start(null, X.S.pb ? X.itemKey(X.S.pb) : X.S.empty ? (X.firstItem(X.S.empty) || {}).key : null); X.setMode('teacher'); });
+    U.$('#btnNew').addEventListener('click', () => { X.T.start(); X.setMode('teacher'); });
     U.$('#btnEdit').addEventListener('click', () => { if (!X.S.pb) return U.toast('Select a problem first.'); X.T.start(X.S.pb); X.setMode('teacher'); });
     U.$('#btnImport').addEventListener('click', () => U.$('#importFile').click());
     U.$('#importFile').addEventListener('change', e => {
       const f = e.target.files[0]; if (!f) return;
       f.text().then(t => {
         try {
-          const pb = JSON.parse(t); if (!pb || !X.valid(pb)) throw new Error('The file contains no recognizable model');
+          const pb = JSON.parse(t); if (!pb || !X.valid(pb)) throw new Error('Required problem content or calculation conditions are invalid. Check the problem in Add problems and export it again.');
           pb.id = 'my-' + Date.now().toString(36); pb.model = X.modelOf(pb); pb.kind = X.kindOf(pb); pb.pts = pb.pts || {}; pb.qs = pb.qs || [];
           const mine = U.store.get('ex:mine', []); mine.push(pb); U.store.set('ex:mine', mine); X.setMode('student'); X.open(pb); U.toast('Imported into "My problems".');
         } catch (er) { U.toast('Import failed: ' + er.message); }

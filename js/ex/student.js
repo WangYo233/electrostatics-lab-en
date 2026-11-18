@@ -2,7 +2,7 @@
 // Worked problems (student): choose a problem → read → answer (options A, B, C, D) → guided exploration (predict first, then reveal) → view solution
 (function (EL) {
   const U = EL.U, h = U.h, K = EL.UI, X = EL.EX, W = X.W, V = EL.V, VA = EL.VA;
-  const S = X.S = { pb: null, sol: null, qi: -1, step: 0, ans: {}, path: 0.3, res: {}, empty: null, pathPlaying: false, pathRaf: 0 };
+  const S = X.S = { pb: null, sol: null, qi: -1, step: 0, ans: {}, attempts: {}, path: 0.3, res: {}, empty: null, pathPlaying: false, pathRaf: 0 };
   X.stopPath = function () { S.pathPlaying = false; if (S.pathRaf) cancelAnimationFrame(S.pathRaf); S.pathRaf = 0; };
 
   X.renderList = function () {
@@ -13,7 +13,7 @@
   };
   X.open = function (pb) {
     X.stopPath();
-    S.pb = pb; S.sol = X.solve(pb); S.qi = -1; S.step = 0; S.ans = {}; S.res = {}; S.empty = null;
+    S.pb = pb; S.sol = X.solve(pb); S.qi = -1; S.step = 0; S.ans = {}; S.attempts = {}; S.res = {}; S.empty = null;
     X.renderList(); X.renderProblem(); W.r.cam.reset(W.AD * 1.2, false, true); X.focus(null);
   };
   // "Worked problems" jump from the lab: open the first worked problem of that model; if there is none, explain and keep the list
@@ -31,25 +31,45 @@
     if (!S.pb) {
       const L = X.LABS[S.empty], it = X.firstItem(S.empty);
       return box.replaceChildren(h('h2', null, L ? L.code + ' ' + L.title : 'Worked problems'), h('div.ex-empty', null, h('p', null, 'This model has no worked problems yet. You can add one for it in "Add problems".'),
-        it ? K.btn('Add a problem for this model', () => { X.T.start(null, it.key); X.setMode('teacher'); }, 'primary') : null, h('p.note', null, 'You can also choose a worked problem of another model in the list on the left.')));
+        it ? K.btn('Add a problem for this model', () => { X.T.start(null, it.key); X.setMode('teacher'); }, 'primary ex-author-only') : null, h('p.note', null, 'You can also choose a worked problem of another model in the list on the left.')));
     }
     const pb = S.pb, sol = S.sol;
     const cards = sol.ans.map((o, i) => {
       const q = o.q, r = S.res[i], right = X.rightOf(o), L = o.options ? X.optLetter(o.options, right) : '';
+      const misconception = r && !r.ok ? (o.distractors || []).find(d => d.v === r.pick)?.why : '';
       const ansT = o.options ? L + '. ' + U.rich(right) : U.rich(o.answer);
-      const fb = r && r.pick != null ? h('p', { class: 'fb ' + (r.ok ? 'ok' : 'bad'), html: (r.ok ? '✓ Correct' + (o.options ? '; the answer is ' + L : '') + '.' : '✗ ' + (o.options ? 'Option ' + X.optLetter(o.options, r.pick) + ' ' : 'This answer ') + 'is not correct. Think again.') + (r.show && !r.ok ? ' Answer: ' + ansT + '.' : '') })
+      const fb = r && r.pick != null ? h('p', { class: 'fb ' + (r.ok ? 'ok' : 'bad'), html: (r.ok ? '✓ Correct' + (o.options ? '; the answer is ' + L : '') + '.' : '✗ ' + (o.options ? 'Option ' + X.optLetter(o.options, r.pick) + ' ' : 'This answer ') + 'is not correct. ' + (misconception ? U.rich(misconception) : 'Check the direction, sign and units, then try again.')) + (r.show && !r.ok ? ' Answer: ' + ansT + '.' : '') })
         : r && r.show ? h('p.fb.skip', { html: 'Answer: ' + ansT + '.' }) : null;
       let inp;
       if (!o.ok) inp = h('p.note', null, o.err);
       else if (o.options) inp = h('div.opts', { role: 'group', 'aria-label': 'Options' }, o.options.map((v, j) => h('button', { type: 'button', class: 'btn opt' + (r && r.pick === v ? (r.ok ? ' ok' : ' bad') : ''), 'aria-pressed': !!(r && r.pick === v),
         html: '<b class="opt-l">' + X.letter(j) + '.</b> ' + U.rich(v), onclick: () => X.check(i, v) })));
       else { const t = h('input.cell', { type: 'text', placeholder: 'e.g. √3 or 2/3', 'aria-label': 'Enter your answer', style: 'width:9em' }); inp = h('div.row.wrap', null, t, K.btn('Check answer', () => X.check(i, t.value))); }
-      return h('section.qcard' + (S.qi === i ? '.on' : ''), null, h('div.qh', null, h('span.qn', null, '(' + (i + 1) + ')'), h('p', { html: U.rich(X.qText2(q, pb)) })), inp, fb,
-        o.ok ? h('div.btns', null, K.btn('Guided exploration', () => X.guide(i), S.qi === i ? 'on' : ''), K.btn(r && r.exp ? 'Hide solution' : 'Show solution', () => { S.res[i] = Object.assign(S.res[i] || {}, { exp: !(r && r.exp), show: true }); X.renderProblem(); }), K.btn('Show answer', () => { S.res[i] = Object.assign(S.res[i] || {}, { show: true }); X.renderProblem(); }, 'ghost')) : null,
-        r && r.exp ? h('div.exp', null, ...X.explain(o).map(l => h('div', null, h('p', { html: U.rich(l.t) }), l.tex || l.rows ? h('div.formula', { html: VA.stepHTML(l) }) : null))) : null);
+      return h('section.qcard' + (S.qi === i ? '.on' : ''), null, h('div.qh', null, h('span.qn', null, '(' + (i + 1) + ')'), h('p', { html: U.rich(X.qText2(q, pb)) })), q.t === 'trend' && [q.a, q.b].some(n => sol.R.sources.some(source => V.dist(source.p, sol.R.pts[n].p) < 1e-9)) ? h('p.note', { html: U.rich(pb.id === 'tpt-triangle-three-like' ? pb.note : 'Potential is undefined at a point source. The curve and animation show only finite positions along the path.') }) : null, inp, fb,
+        o.ok ? h('div.btns', null, K.btn('Guided exploration', () => X.guide(i), S.qi === i ? 'on' : ''), K.btn(r && r.exp ? 'Hide solution' : 'Show solution', () => { S.res[i] = Object.assign(S.res[i] || {}, { exp: !(r && r.exp) }); X.renderProblem(); }), K.btn('Show answer', () => { S.res[i] = Object.assign(S.res[i] || {}, { show: true }); X.renderProblem(); }, 'ghost')) : null,
+        r && r.exp ? solutionCards(o, pb, sol.R) : null);
     });
-    box.replaceChildren(h('h2', null, pb.title), h('div.stem', null, h('p', { html: U.rich(pb.stem || X.stem(pb, sol.R)) }), pb.note ? h('p.note', { html: U.rich(pb.note) }) : null), ...cards);
+    box.replaceChildren(h('h2', null, pb.title), h('div.stem', null, h('p', { html: U.rich(pb.stem || X.stem(pb, sol.R)) }), pb.note && pb.id !== 'tpt-triangle-three-like' ? h('p.note', { html: U.rich(pb.note) }) : null), ...cards);
   };
+  function solutionCards(o, pb, R) {
+    const steps = !R.analytic && o.plan && ['E', 'angle', 'Ezero'].includes(o.q.t) ? o.plan
+      : o.q.t === 'trend' ? X.pathSteps(pb, R, o, 0.3) : X.calculationSteps(pb, R, o);
+    return h('div.exp', null, steps.map((st, i) => h('details.exp-step', null,
+      h('summary', { html: 'Step ' + (i + 1) + ' · ' + U.rich(st.title) }),
+      h('p', { html: U.rich(st.text || '') }), h('div.formula', { html: VA.stepHTML(st) }))));
+  }
+  function announce(st, feedback) {
+    const status = U.$('#guideStatus');
+    if (status) status.textContent = 'Step ' + (S.step + 1) + ' · ' + U.plain(st.title) + (feedback ? ' · ' + feedback : '');
+  }
+  function predict(value) {
+    const st = S.sol.ans[S.qi].plan[S.step], attempt = S.attempts[S.step] || { count: 0 };
+    if (value === st.ask.a || ++attempt.count >= 2) {
+      S.ans[S.step] = value; S.attempts[S.step] = attempt; X.focusStep();
+    } else {
+      attempt.pick = value; S.attempts[S.step] = attempt; X.renderCap();
+    }
+  }
   X.check = function (i, v) {
     const o = S.sol.ans[i];
     let ok;
@@ -63,7 +83,7 @@
   X.guide = function (i) {
     X.stopPath();
     const o = S.sol.ans[i], R = S.sol.R, pb = S.pb;
-    S.qi = i; S.step = 0; S.ans = {}; S.curveZoom = 'detail';
+    S.qi = i; S.step = 0; S.ans = {}; S.attempts = {}; S.curveZoom = 'detail';
     if (!R.analytic && o.plan && ['E', 'angle', 'Ezero'].includes(o.q.t)) X.focusStep();
     else { S.calc = o.q.t === 'trend' ? null : X.calculationSteps(S.pb, R, o); S.path = 0.3; X.focusCalculation(); }
     X.renderProblem();
@@ -117,8 +137,16 @@
     const Xp = x => L + (x - bounds.min) / (bounds.max - bounds.min) * RW, Yp = y => T + (hi - y) / span * RH;
     const dark = EL.theme === 'dark'; g.strokeStyle = dark ? '#718096' : '#68778a'; g.fillStyle = dark ? '#e5edf7' : '#263446'; g.lineWidth = 1; g.font = '11px sans-serif';
     g.beginPath(); g.moveTo(L, T); g.lineTo(L, T + RH); g.lineTo(L + RW, T + RH); g.stroke();
-    g.fillText('V', 8, 13); g.fillText('s: ' + bounds.min.toFixed(3) + ' – ' + bounds.max.toFixed(3), L + 6, 13); g.fillText(a + ' → ' + b, Math.max(L + 4, w - 65), h0 - 4); g.fillText(U.fmt(hi, 3), 3, T + 4); g.fillText(U.fmt(lo, 3), 3, T + RH);
+    g.fillText('V / (' + R.units.V + ')', 8, 13); g.fillText('s: ' + bounds.min.toFixed(3) + ' – ' + bounds.max.toFixed(3), Math.max(L + 6, w - 145), 13); g.fillText(a + ' → ' + b, Math.max(L + 4, w - 65), h0 - 4); g.fillText(U.fmt(hi, 3), 3, T + 4); g.fillText(U.fmt(lo, 3), 3, T + RH);
     g.strokeStyle = '#f28e2b'; g.lineWidth = 2; g.beginPath(); vals.forEach((q, i) => i ? g.lineTo(Xp(q[0]), Yp(q[1])) : g.moveTo(Xp(q[0]), Yp(q[1]))); g.stroke();
+    if (proof) proof.roots.forEach((root, i) => {
+      if (root < bounds.min || root > bounds.max) return;
+      const value = R.field(V.lerp(R.pts[a].p, R.pts[b].p, root)).V, x = Xp(root), y = Yp(value);
+      g.strokeStyle = dark ? '#cbd5e1' : '#475569'; g.lineWidth = 1; g.setLineDash([3, 3]);
+      g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + RH); g.stroke(); g.setLineDash([]);
+      g.fillStyle = dark ? '#f8fafc' : '#172033'; g.beginPath(); g.arc(x, y, 3, 0, Math.PI * 2); g.fill();
+      g.fillText('s' + (i + 1) + ' ≈ ' + U.fmt(root, 3), Math.max(L, Math.min(x - 25, w - 70)), T + 12 + i * 13);
+    });
     const v = R.field(V.lerp(R.pts[a].p, R.pts[b].p, s)).V; if (isFinite(v) && s >= bounds.min && s <= bounds.max) { g.fillStyle = '#d1495b'; g.beginPath(); g.arc(Xp(s), Yp(v), 4, 0, Math.PI * 2); g.fill(); }
   }
   function animatePath() {
@@ -137,7 +165,9 @@
     if (range) range.value = value;
     if (number && document.activeElement !== number) number.value = value.toFixed(3);
     const R = S.sol.R, step = X.pathSteps(S.pb, R, S.sol.ans[S.qi], value)[S.step];
-    box.querySelector('.calc-body').replaceChildren(h('p.cap-t', { html: U.rich(step.text) }), h('div', { html: VA.stepHTML(step) }));
+    const body = box.querySelector('.calc-body'), advancedOpen = body.querySelector('details.cap-advanced')?.open;
+    body.replaceChildren(h('p.cap-t', { html: U.rich(step.text) }), h('div', { html: VA.stepHTML(step) }));
+    if (advancedOpen && body.querySelector('details.cap-advanced')) body.querySelector('details.cap-advanced').open = true;
     const curve = box.querySelector('canvas.potential-curve'); if (curve) drawPotentialCurve(curve, R, f.a, f.b, value);
   }
   X.renderCap = function () {
@@ -149,38 +179,42 @@
     if (f.kind === 'plan') {
       const st = o.plan[S.step], ans = S.ans[S.step], n = o.plan.length, kids = [h('div.cap-h', null, h('span.cap-n', null, '3D synthesis ' + (S.step + 1) + ' / ' + n), h('b', { html: U.rich(st.title) }))];
       if (st.ask && ans == null && st.setup) kids.push(h('p.cap-t', { html: U.rich(st.setup) }));
-      if (st.ask && ans == null) kids.push(h('p.cap-q', { html: 'Predict first: ' + U.rich(st.ask.q) }), h('div.cap-opts', null, st.ask.options.map((v, j) => { const b = K.btn('', () => { S.ans[S.step] = v; X.focusStep(); }); b.innerHTML = '<b class="opt-l">' + X.letter(j) + '.</b> ' + U.rich(v); return b; }), K.btn('Skip prediction', () => { S.ans[S.step] = ''; X.focusStep(); }, 'mini skip')));
+      if (st.ask && ans == null) { kids.push(h('p.cap-q', { html: 'Predict first: ' + U.rich(st.ask.q) }), h('div.cap-opts', null, st.ask.options.map((v, j) => { const b = K.btn('', () => predict(v)); b.innerHTML = '<b class="opt-l">' + X.letter(j) + '.</b> ' + U.rich(v); return b; }), K.btn('Skip prediction', () => { S.ans[S.step] = ''; X.focusStep(); }, 'mini skip')));
+        if (S.attempts[S.step]?.count) kids.push(h('p.prediction-hint', { role: 'note' }, 'Not quite. First compare the directions and magnitudes of the component fields, then use symmetry or the parallelogram rule. A positive charge produces an outward field; a negative charge produces an inward field. Try once more.'));
+      }
       else {
         const aL = st.ask ? X.optLetter(st.ask.options, st.ask.a) + '. ' + U.rich(st.ask.a) : '';
         if (st.ask) kids.push(h('p', { class: 'cap-fb ' + (ans === '' ? 'skip' : ans === st.ask.a ? 'ok' : 'bad'), html: (ans === '' ? 'Answer: ' + aL + '. ' : ans === st.ask.a ? '✓ Correct. ' : '✗ Answer: ' + aL + '. ') + U.rich(st.ask.why) }));
         kids.push(h('p.cap-t', { html: U.rich(st.text) }), h('div', { html: VA.stepHTML(st) }));
       }
-      kids.push(h('div.cap-nav', null, K.btn('‹', () => { if (S.step > 0) { S.step--; X.focusStep(); } }, 'mini'), h('span.cap-dots', null, o.plan.map((_, j) => h('i', { class: j === S.step ? 'on' : j < S.step ? 'done' : '' }))), close,
+      kids.push(h('div.cap-nav', null, K.btn('‹', () => { if (S.step > 0) { S.step--; X.focusStep(); } }, 'mini'), h('span.cap-dots', null, o.plan.map((_, j) => h('i', { class: j === S.step ? 'on' : j < S.step ? 'done' : '', 'aria-current': j === S.step ? 'step' : null, 'aria-label': 'Step ' + (j + 1) }))), close,
         K.btn(S.step === n - 1 ? 'Done' : 'Next ›', () => { if (S.step < n - 1) { S.step++; X.focusStep(); } else close.click(); }, 'mini primary')));
       box.replaceChildren(...kids);
+      announce(st, st.ask ? ans == null && S.attempts[S.step]?.count ? 'First choice incorrect. Read the hint and try again.' : ans != null ? U.plain(st.ask.why) : '' : '');
     } else {
       const steps = f.kind === 'path' ? X.pathSteps(S.pb, R, o, f.s) : S.calc, st = steps[S.step];
       const kids = [h('div.cap-h', null, h('span.cap-n', null, 'Calculation ' + (S.step + 1) + ' / ' + steps.length), h('b', { html: U.rich(st.title) }))];
+      if (f.kind === 'path') {
+        const zoom = h('select', { 'aria-label': 'Curve range' }, h('option', { value: 'full' }, 'Full finite interval'), h('option', { value: 'detail' }, 'Zoom near extrema'));
+        zoom.value = S.curveZoom || 'detail';
+        zoom.addEventListener('change', () => { S.curveZoom = zoom.value; const c = box.querySelector('canvas.potential-curve'); if (c) drawPotentialCurve(c, R, f.a, f.b, f.s); });
+        const curve = h('canvas.potential-curve', { 'aria-label': 'Potential along the path' });
+        kids.push(h('div.cap-curve-wrap', null, curve));
+        kids.push(h('label.row.wrap', null, h('span', null, 'Curve range'), zoom));
+        if (pathBounds(R, f.a, f.b).open) kids.push(h('p.note', null, 'Only finite readings are plotted. A point-source endpoint has a divergent limit and is excluded from the graph.'));
+        S.curveResize = new ResizeObserver(() => drawPotentialCurve(curve, R, f.a, f.b, f.s));
+        S.curveResize.observe(curve);
+      }
       if (f.kind === 'path') {
         const bounds = pathBounds(R, f.a, f.b);
         kids.push(K.slider({ label: 'Position of X s = ' + f.a + 'X / ' + f.a + f.b, min: bounds.min, max: bounds.max, step: 0.001, val: f.s, on: v => updatePath(v) }));
         kids.push(h('div.cap-nav', null, h('span'), K.btn(S.pathPlaying ? 'Pause animation' : 'Play path', () => { S.pathPlaying = !S.pathPlaying; if (S.pathPlaying) S.pathRaf = requestAnimationFrame(animatePath); else { cancelAnimationFrame(S.pathRaf); S.pathRaf = 0; } X.renderCap(); }, 'mini')));
       }
       kids.push(h('div.calc-body', null, h('p.cap-t', { html: U.rich(st.text) }), h('div', { html: VA.stepHTML(st) })));
-      if (f.kind === 'path') {
-        const zoom = h('select', { 'aria-label': 'Curve range' }, h('option', { value: 'full' }, 'Full finite interval'), h('option', { value: 'detail' }, 'Zoom near extrema'));
-        zoom.value = S.curveZoom || 'detail';
-        zoom.addEventListener('change', () => { S.curveZoom = zoom.value; const c = box.querySelector('canvas.potential-curve'); if (c) drawPotentialCurve(c, R, f.a, f.b, f.s); });
-        kids.push(h('label.row.wrap', null, h('span', null, 'Curve range'), zoom));
-        const curve = h('canvas.potential-curve', { 'aria-label': 'Potential along the path' });
-        kids.push(h('div.cap-curve-wrap', null, curve));
-        if (pathBounds(R, f.a, f.b).open) kids.push(h('p.note', null, 'Only finite readings are plotted. A point-source endpoint has a divergent limit and is excluded from the graph.'));
-        S.curveResize = new ResizeObserver(() => drawPotentialCurve(curve, R, f.a, f.b, f.s));
-        S.curveResize.observe(curve);
-      }
+      announce(st);
       const prev = K.btn('‹', () => { if (S.step > 0) { X.stopPath(); S.step--; X.focusCalculation(); } }, 'mini');
       prev.disabled = S.step === 0;
-      kids.push(h('div.cap-nav', null, prev, h('span.cap-dots', null, steps.map((_, j) => h('i', { class: j === S.step ? 'on' : j < S.step ? 'done' : '' }))), close,
+      kids.push(h('div.cap-nav', null, prev, h('span.cap-dots', null, steps.map((_, j) => h('i', { class: j === S.step ? 'on' : j < S.step ? 'done' : '', 'aria-current': j === S.step ? 'step' : null, 'aria-label': 'Step ' + (j + 1) }))), close,
         K.btn(S.step === steps.length - 1 ? 'Done' : 'Next ›', () => { X.stopPath(); if (S.step < steps.length - 1) { S.step++; X.focusCalculation(); } else close.click(); }, 'mini primary')));
       box.replaceChildren(...kids);
     }
