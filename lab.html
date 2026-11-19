@@ -49,8 +49,8 @@
           <button type="button" id="btnImport" role="menuitem">Import JSON file</button>
           <button type="button" id="btnPng" role="menuitem">Save canvas image <kbd>PNG</kbd></button>
           <hr>
-          <button type="button" id="btnSheet" role="menuitem">Export worksheet <kbd>Student edition</kbd></button>
-          <button type="button" id="btnSheetT" role="menuitem">Export worksheet <kbd>Teacher edition, with answers</kbd></button>
+          <button type="button" id="btnSheet" role="menuitem">Export worksheet</button>
+          <button type="button" id="btnSheetT" role="menuitem">Export worksheet with hints and answers</button>
         </div>
       </details>
       <input type="file" id="importFile" accept=".json,application/json" hidden>
@@ -129,7 +129,7 @@
           <div class="g-item"><h3>What to record</h3><p id="rec"></p></div>
           <details class="g-item" id="hintBox"><summary>Reasoning hint</summary><p id="hint"></p></details>
           <div id="stageActions" class="btns"></div>
-          <details class="g-item teacher" id="teacherBox" hidden><summary>Teaching notes (teacher)</summary><p id="teacher"></p></details>
+          <details class="g-item" id="teacherBox" hidden><summary>Additional hints</summary><p id="teacher"></p></details>
         </div>
       </section>
       <section class="insp" data-for="analyze">

@@ -88,8 +88,8 @@
     setTimeout(() => { A.r.draw(); A.setMode(document.body.dataset.mode); }, 380);
   };
 
-  // Export the worksheet (printable HTML); with teacher=true, add reference answers and teaching notes
-  A.exportWorksheet = function (teacher) {
+  // Export the worksheet (printable HTML); includeAnswers=true adds answers and hints
+  A.exportWorksheet = function (includeAnswers) {
     const m = A.st.model, sub = A.st.sub, t = A.theoryOf(), ex = m.exercisesFor ? m.exercisesFor(sub) : m.exercises || [];
     const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     const lines = n => '<div class="ln"></div>'.repeat(n);
@@ -101,7 +101,7 @@
       '.eqn{display:grid;grid-template-columns:minmax(3em,1fr) auto minmax(3em,1fr);align-items:center;margin:8px 0}.eqn-m{grid-column:2;text-align:center}.eqn-n{grid-column:3;justify-self:end;font-family:"Times New Roman",serif}math[display=block]{display:block math;margin:4px auto}' +
       '@media print{body{margin:0}h2{break-after:avoid}.st{break-inside:avoid}}</style></head><body>';
     html += U.watermarkHTML();
-    html += '<h1>' + esc(m.code + ' ' + m.title + (m.analytic ? ' · ' + EL.SUB08[sub].name : '')) + ' worksheet' + (teacher ? ' (teacher edition)' : '') + '</h1>';
+    html += '<h1>' + esc(m.code + ' ' + m.title + (m.analytic ? ' · ' + EL.SUB08[sub].name : '')) + ' worksheet</h1>';
     const R = U.richMath;
     html += '<p>Name ________　Class ________　Date ________</p><h2>I. Fundamentals</h2><p>' + R(t.intro) + '</p>' +
       t.formulas.map((x, i) => EL.texEq(x.tex, i + 1) + '<p style="font-size:13px;color:#3a4a60"><b>Eq. (' + (i + 1) + ')</b>　' + R(x.where) + '</p>').join('');
@@ -110,13 +110,13 @@
     m.stages.forEach((s, i) => {
       html += '<div class="st"><h3>Stage ' + (i + 1) + '　' + esc(s.title) + '</h3><p class="q"><b>Question: </b>' + R(s.q) + '</p><p><b>What to observe: </b>' + R(s.obs) + '</p>';
       html += '<div class="box"><b>My prediction: </b>' + lines(2) + '</div><p><b>What to record: </b>' + R(s.rec) + '</p>' + lines(3);
-      if (teacher && s.hint) html += '<p class="ans">Reasoning hint: ' + R(s.hint) + '</p>';
+      if (includeAnswers && s.hint) html += '<p class="ans">Reasoning hint: ' + R(s.hint) + '</p>';
       html += '</div>';
     });
     if (!m.analytic) html += '<h3>Field synthesis record (use the field-synthesis guide in the Analyze workspace)</h3><table><tr><th>Field point</th><th>Magnitudes of the component fields</th><th>First pair combined and their angle</th><th>Partial sums Σ₁, Σ₂</th><th>Net field</th></tr>' + '<tr><td></td><td></td><td></td><td></td><td></td></tr>'.repeat(3) + '</table>';
     html += '<h2>Predictions and checks</h2>' + ex.map((e, i) => '<p class="q">' + (i + 1) + '. ' + R(e.q) + (e.options ? '<br>' + e.options.map(o => '□ ' + R(o)).join('　') : '　Answer: __________') +
-      (teacher ? '<br><span class="ans">Answer: ' + R(e.options ? e.a : U.fmt(e.a, 6)) + (e.why ? '. ' + R(e.why) : '') + '</span>' : '') + '</p>').join('');
+      (includeAnswers ? '<br><span class="ans">Answer: ' + R(e.options ? e.a : U.fmt(e.a, 6)) + (e.why ? '. ' + R(e.why) : '') + '</span>' : '') + '</p>').join('');
     html += '<h2>Study log</h2><table><tr><th>Configuration / position</th><th>Prediction</th><th>Measured V, E</th><th>Explanation / conclusion</th></tr>' + '<tr><td></td><td></td><td></td><td></td></tr>'.repeat(5) + '</table></body></html>';
-    U.download('worksheet_' + m.code + '_' + m.title + (teacher ? '_teacher' : '') + '.html', html, 'text/html;charset=utf-8');
+    U.download('worksheet_' + m.code + '_' + m.title + (includeAnswers ? '_with-hints-and-answers' : '') + '.html', html, 'text/html;charset=utf-8');
   };
 })(window.EL);

@@ -8,7 +8,7 @@
     if (!now && document.body.dataset.exmode !== m && EL.motion) return EL.motion.swap(() => X.setMode(m, true));
     document.body.dataset.exmode = m;
     const nav = U.$('#modelSel');
-    if (nav) nav.value = m === 'teacher' ? 'add' : 'problems';
+    if (nav) nav.value = 'problems';
     document.title = (m === 'teacher' ? 'Add problems' : 'Worked problems') + ' · Electrostatics Lab';
     if (m === 'teacher') { if (X.stopPath) X.stopPath(); X.S.f = null; U.$('#caption').hidden = true; }
     if (m === 'teacher') { if (!X.T.d) X.T.start(); else X.T.render(); }
@@ -93,9 +93,9 @@
     if (linked) X.open(linked); else if (r.model) X.openModel(r.model); else X.open(X.BUILTIN[0]);
     if (r.mode === 'teacher') X.T.start(null, r.model ? (X.firstItem(r.model) || {}).key : null);
     const modelSel = U.$('#modelSel'), groups = [['I. Basic models', [1, 2]], ['II. Symmetric models', [4, 6, 5]], ['III. Extensions and authoring', [7, 8, 3]], ['IV. Problems', []]];
-    modelSel.replaceChildren(...groups.map(([title, ids], i) => h('optgroup', { label: title }, ids.map(id => h('option', { value: String(id) }, X.LABS[id].code + ' ' + X.LABS[id].title)).concat(i === 3 ? [h('option', { value: 'problems' }, 'Worked problems'), h('option', { value: 'add' }, 'Add problems')] : []))));
-    modelSel.value = r.mode === 'teacher' ? 'add' : 'problems';
-    modelSel.addEventListener('change', e => { const v = e.target.value; if (v === 'problems') { X.setMode('student'); X.open(X.BUILTIN[0]); } else if (v === 'add') location.href = 'examples.html?mode=add'; else location.href = 'lab.html?m=' + v; });
+    modelSel.replaceChildren(...groups.map(([title, ids], i) => h('optgroup', { label: title }, ids.map(id => h('option', { value: String(id) }, X.LABS[id].code + ' ' + X.LABS[id].title)).concat(i === 3 ? [h('option', { value: 'problems' }, 'Worked problems')] : []))));
+    modelSel.value = 'problems';
+    modelSel.addEventListener('change', e => { const v = e.target.value; if (v === 'problems') { X.setMode('student'); X.open(X.BUILTIN[0]); } else location.href = 'lab.html?m=' + v; });
     X.setMode(r.mode, true);
     if (r.mode === 'student' && linked && r.guide) {
       const i = Number(r.guide) - 1;
