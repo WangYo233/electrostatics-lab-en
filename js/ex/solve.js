@@ -47,6 +47,14 @@
   X.num = num;
   const numTex = x => VA.texV(x);
   const near = (p, src) => src.some(s => V.dist(p, s.p) < 1e-9);
+  X.angleData = function (R, q) {
+    const p = R.pts[q.at]?.p, a = R.pts[q.a]?.p, b = R.pts[q.b]?.p;
+    if (!p || !a || !b) return null;
+    const E = R.field(p).E, u = V.sub(b, a), length = V.len(E) * V.len(u);
+    if (!Number.isFinite(length) || length < 1e-12) return null;
+    const cosine = U.clamp(V.dot(E, u) / length, -1, 1), degrees = Math.acos(cosine) * 180 / Math.PI;
+    return { cosine, special: [0, 30, 45, 60, 90, 120, 135, 150, 180].some(x => Math.abs(x - degrees) < 1e-7) };
+  };
 
   // One question: answer, options (with distractors), solution and diagnostics
   X.answer = function (pb, R, q) {
@@ -176,6 +184,23 @@
       }
       const o = X.answer(pb, R, q);
       if (X.exactAnswer) X.exactAnswer(pb, R, o);
+      if (o.ok && q.t === 'angle') {
+        const angle = X.angleData(R, q);
+        if (angle && !angle.special) {
+          o.cosineQuestion = true;
+          o.answer = 'cos α = ' + VA.txtV(angle.cosine);
+          o.options = [...new Set([angle.cosine, -angle.cosine, 0, 1, -1].map(x => 'cos α = ' + VA.txtV(x)))].slice(0, 4);
+          const step = { id: 'angleRatio', title: 'Find the cosine from a geometric projection', text: 'First find the resultant and its component along the stated direction. The cosine is that component divided by the resultant magnitude. No numerical angle or inverse trigonometric function is needed.', tex: String.raw`\vec u=\vec r_{${q.b}}-\vec r_{${q.a}},\quad E_{\parallel}=\frac{\vec E\cdot\vec u}{|\vec u|}\qquad\cos\alpha=\frac{E_{\parallel}}{|\vec E|}${VA.valueEq(angle.cosine)}` };
+          const preceding = o.plan ? o.plan.filter(st => st.id !== 'list' && st.id !== 'group').map(st => ({ t: st.title + ': ' + st.text, tex: st.tex, rows: st.rows })) : (o.expl || []).slice(0, -1);
+          o.expl = preceding.concat({ t: step.text, tex: step.tex });
+          if (o.plan) o.plan.push(step);
+          o.distractors = o.options.filter(v => v !== o.answer).map(v => ({ v, why: 'Check the sign of the projection, then divide by the resultant magnitude.' }));
+        }
+      }
+      if (o.ok && o.options && !/\d\.\d/.test(X.rightOf(o))) {
+        const simple = o.options.filter(v => !/\d\.\d/.test(v));
+        if (simple.length >= 2) { o.options = simple; o.distractors = (o.distractors || []).filter(d => simple.includes(d.v)); }
+      }
       o.units = R.units;
       if (o.ok && R.analytic && q.t !== 'trend' && X.analyticSteps) o.expl = X.analyticSteps(pb, R, o);
       X.fieldChoices(R, o);
@@ -210,7 +235,7 @@
       case 'Vcmp': return 'Compare the potentials at ' + q.a + ' and ' + q.b + '.';
       case 'trend': return 'How does the potential change along the straight line from ' + q.a + ' to ' + q.b + '?';
       case 'W': return 'A test charge of ' + X.qText(q.q0 || 1, 'q') + ' is moved from ' + q.a + ' to ' + q.b + '. How much work does the electric force do?';
-      case 'angle': return 'Find the angle between the electric field at ' + q.at + ' and the direction from ' + q.a + ' to ' + q.b + '.';
+      case 'angle': { const angle = pb && X.angleData(X.resolve(pb), q); return 'Let α be the angle between the electric field at ' + q.at + ' and the direction from ' + q.a + ' to ' + q.b + '. ' + (angle && !angle.special ? 'Find cos α from the geometry; no numerical angle is required.' : 'Find α.'); }
       case 'U': return 'Find the total interaction energy U of this set of point charges.';
       case 'pairs': return 'How many distinct pairs of charges must be counted in the total interaction energy?';
       case 'Ucmp': return 'Keep the total number of charges N, the disk radius R and the charge of each point charge fixed, and compare two configurations: N charges equally spaced around the circle, or one charge moved to the center with the other N − 1 equally spaced around the circle. Which configuration has the smaller total interaction energy?';
@@ -244,6 +269,7 @@
     sol.ans.forEach((o, i) => {
       if (!o.ok) { out.push({ k: 'bad', t: 'Question ' + (i + 1) + ': ' + o.err }); return; }
       (o.diag || []).forEach(d => out.push({ k: d.k, t: 'Question ' + (i + 1) + ': ' + d.t }));
+      if (['E', 'V', 'W', 'U', 'angle'].includes(o.q.t) && /\d\.\d/.test(o.mag || o.answer || '')) out.push({ k: 'info', t: 'Question ' + (i + 1) + ' requires a numerical approximation. For a hand calculation, use a center or midpoint with simple charges, or ask whether the field is zero or which potential is higher. Approximate readings suit curve observation and checking.' });
       if (o.plan && o.plan.d && (o.q.t === 'E' || o.q.t === 'angle')) {
         const g = o.plan.d.groups, sym = g.filter(x => x.type !== 'rest' && !x.unequal).length;
         const nice = !!VA.nice(V.len(o.T));

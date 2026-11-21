@@ -8,6 +8,7 @@
   const SUBS = '₀₁₂₃₄₅₆₇₈₉', sub = i => String(i).split('').map(d => SUBS[+d]).join('');
   const deg = x => x * 180 / Math.PI, f4 = x => U.fmt(x, 4), r1 = x => Math.round(x * 10) / 10;
   const tol = (a, b) => Math.abs(a - b) <= 1e-7 * Math.max(Math.abs(a), Math.abs(b), 1e-12);
+  const angleLabel = th => [0, 30, 45, 60, 90, 120, 135, 150, 180].some(x => Math.abs(x - th) < 1e-7) ? 'θ=' + r1(th) + '°' : 'θ';
   VA.f4 = f4;
   VA.ang = (a, b) => deg(Math.acos(U.clamp(V.dot(a, b) / (V.len(a) * V.len(b)), -1, 1)));
   // Angle options: the correct value plus two clearly different distractors
@@ -72,7 +73,7 @@
     return length < 1e-12 ? [0] : items.map(item => V.dot(item.E, total) / length);
   };
   const tableCell = x => { const n = niceX(x); return n ? n.text : '≈' + f4(x); };
-  const tableNumber = x => typeof x !== 'number' || !Number.isFinite(x) ? U.fmt(x) : Number.isInteger(x) ? String(x) : '≈' + f4(x);
+  const tableNumber = tableCell;
   VA.offsets = function (vs, gap) {
     const out = vs.map(() => [0, 0, 0]), seen = new Set();
     out.rank = vs.map(() => 0);
@@ -135,7 +136,7 @@
     return null;
   };
   // ---- Symmetric grouping: component fields of equal magnitude form groups (a group of 3 or more that is coplanar → plane group; otherwise pairs), the rest form the "rest" group ----
-  VA.group = function (parts, P) {
+  VA.group = function (parts, P, named) {
     const used = new Set(), groups = [];
     const cls = [];
     for (const x of parts) { const c = cls.find(k => tol(k[0].mag, x.mag)); if (c) c.push(x); else cls.push([x]); }
@@ -143,6 +144,10 @@
     for (const c of cls) {
       if (c.length < 2) continue;
       if (c.length >= 3) { const pl = VA.planeOf(P, c.map(x => x.p)); if (pl && pl.n) { groups.push({ type: 'plane', items: c, n: pl.n }); c.forEach(x => used.add(x)); continue; } }
+      if (c.length === 3 && named) {
+        const known = c.flatMap((a, i) => c.slice(i + 1).map(b => [a, b])).find(pair => named.some(n => V.dist(n.p, V.lerp(pair[0].p, pair[1].p, 0.5)) < 1e-9));
+        if (known) c.sort((a, b) => Number(known.includes(b)) - Number(known.includes(a)));
+      }
       for (let i = 0; i + 1 < c.length; i += 2) { groups.push({ type: 'pair', items: [c[i], c[i + 1]] }); used.add(c[i]); used.add(c[i + 1]); }
     }
     const rest = parts.filter(x => !used.has(x));
@@ -159,7 +164,7 @@
   // ---- Synthesis plan: returns an array of steps (each {id, title, text, tex, ask, rows, view, hide}) with .d attached ----
   VA.plan = function (o) {
     const parts = o.parts, P = o.P, named = o.named || [], unit = o.unit || 'kQ/L²', rU = o.rUnit || 'L', pn = o.pName || 'P';
-    const T = VA.sum(parts), groups = VA.group(parts, P), hide = o.hide ? ['lines', 'contours', 'surfaces', 'flow'] : null;
+    const T = VA.sum(parts), groups = VA.group(parts, P, named), hide = o.hide ? ['lines', 'contours', 'surfaces', 'flow'] : null;
     const d = { P, parts, groups, T, named, pn, unit, rU, partial: !!o.partial }, steps = [];
     const dir = v => VA.describe(v, named);
     steps.push({ id: 'list', title: 'List the component fields', text: (o.partial ? 'Only ' + parts.map(x => x.n).join(', ') + ', selected in free synthesis, are combined this time. The result is their vector sum, not the net field at ' + pn + '. ' : '') + 'The electric field that each source produces alone at ' + pn + ' is a component field, with magnitude |E_i| = k|q_i|/r_i². The component field of a positive source points away from that source, and that of a negative source points toward it.',
@@ -202,7 +207,7 @@
     return { id: 'angle', g, title: 'Find the angle between ' + a.n + ' and ' + b.n, th,
       text: 'In triangle ' + a.label + pn + b.label + ', the law of cosines gives ' + geoName + '. ' +
         (same ? 'The two sources have the same sign, so the angle between ' + a.n + ' and ' + b.n + ' equals ' + geoName + '.' : 'The two sources have opposite signs, so the angle between ' + a.n + ' and ' + b.n + ' is the supplement of ' + geoName + '.'),
-      tex: R`\cos\angle ${a.label}${pn}${b.label}=\frac{r_{${a.label}}^2+r_{${b.label}}^2-|${a.label}${b.label}|^2}{2r_{${a.label}}r_{${b.label}}}=${VA.texV(cg)}\quad\theta=${same ? '' : '180^\\circ-'}\angle ${a.label}${pn}${b.label}${VA.valueEq(th)}^\circ`,
+      tex: R`r_{${a.label}}${VA.valueEq(a.r, d.rU)},\quad r_{${b.label}}${VA.valueEq(b.r, d.rU)},\quad |${a.label}${b.label}|${VA.valueEq(ab, d.rU)}\qquad\cos\angle ${a.label}${pn}${b.label}=\frac{r_{${a.label}}^2+r_{${b.label}}^2-|${a.label}${b.label}|^2}{2r_{${a.label}}r_{${b.label}}}=${VA.texV(cg)}\qquad\cos\theta=${same ? '' : '-'}\cos\angle ${a.label}${pn}${b.label}${VA.valueEq(same ? cg : -cg)}`,
       view: inl ? V.cross(V.sub(a.p, d.P), V.sub(b.p, d.P)) : null };
   };
   // ---- Similar-triangle method: two sources at equal distance from the field point, with charges of equal magnitude, not collinear with the field point ----
@@ -235,7 +240,7 @@
       text = pos.n + ' points from ' + pos.label + ' to ' + pn + ' and ' + neg.n + ' points from ' + pn + ' to ' + neg.label + '. Both have magnitude E₀, and ' + pn + pos.label + ' = ' + pn + neg.label + ' = r. ' +
         'Translate ' + neg.n + ' to the tip of ' + pos.n + '. Two sides of the vector triangle are parallel to ' + pos.label + pn + ' and ' + pn + neg.label + ', and their ratio equals ' + pn + pos.label + ' : ' + pn + neg.label + ', so the vector triangle is similar to triangle ' + tri + ', with similarity ratio E₀/r. ' +
         'Corresponding angles of similar triangles are equal: the angle between ' + nm + ' and ' + pos.n + ' equals ' + base + ', and the angle θ between the two component fields is the supplement of ' + apexN + '.';
-      tex = R`\cos\angle ${pn}${pos.label}${neg.label}=\frac{|${pos.label}${neg.label}|/2}{r}=${VA.texV(s.ab / 2 / s.r)}\qquad\cos\angle ${s.a.label}${pn}${s.b.label}=${VA.texV((2 * s.r * s.r - s.ab * s.ab) / (2 * s.r * s.r))}\quad\theta=180^\circ-\angle ${s.a.label}${pn}${s.b.label}${VA.valueEq(s.th)}^\circ`;
+      tex = R`|${pos.label}${neg.label}|${VA.valueEq(s.ab, d.rU)}\qquad\frac{|${g.tex}|}{E_0}=\frac{|${pos.label}${neg.label}|}{r}${VA.valueEq(s.ab / s.r)}`;
       ask = { q: 'In which direction does ' + nm + ' point?', options: [right, 'from ' + neg.label + ' to ' + pos.label, 'from ' + pn + ' to the midpoint of ' + pos.label + neg.label].sort(), a: right,
         why: 'The vector triangle is similar to triangle ' + tri + ', and ' + nm + ' corresponds to side ' + pos.label + neg.label + ', so ' + nm + ' points ' + right + '.' };
     } else {
@@ -243,10 +248,11 @@
       text = 'Let ' + mn + ' be the midpoint of ' + s.a.label + s.b.label + '. The two component fields have magnitude E₀, so the parallelogram with them as adjacent sides is a rhombus, and its diagonal ' + nm + ' bisects the angle between them. ' +
         'The triangle formed by half of the rhombus (sides ' + s.a.n + ' and ' + nm + '/2) is similar to triangle ' + tri + ', with similarity ratio E₀/r. ' +
         'Corresponding angles of similar triangles are equal: the angle between ' + nm + ' and ' + s.a.n + ' equals ∠' + s.a.label + pn + mn + ', and the angle θ between the two component fields equals ' + apexN + '.';
-      tex = R`|${pn}${mn}|=\sqrt{r^2-(|${s.a.label}${s.b.label}|/2)^2}${VA.valueEq(s.pm, d.rU)}\qquad\cos\angle ${s.a.label}${pn}${mn}=\frac{|${pn}${mn}|}{r}=${VA.texV(s.pm / s.r)}\quad\theta=\angle ${s.a.label}${pn}${s.b.label}${VA.valueEq(s.th)}^\circ`;
+      tex = R`|${pn}${mn}|=\sqrt{r^2-(|${s.a.label}${s.b.label}|/2)^2}${VA.valueEq(s.pm, d.rU)}\qquad\frac{|${g.tex}|}{2E_0}=\frac{|${pn}${mn}|}{r}${VA.valueEq(s.pm / s.r)}`;
       ask = { q: 'In which direction does ' + nm + ' point?', options: [right, toP ? 'from ' + pn + ' to ' + mn : 'from ' + mn + ' to ' + pn, 'from ' + s.a.label + ' to ' + s.b.label].sort(), a: right,
         why: 'The diagonal ' + nm + ' of the rhombus corresponds to side ' + mn + pn + ' of triangle ' + tri + '. Both sources are ' + (toP ? 'positive, so ' : 'negative, so ') + nm + ' points ' + right + '.' };
     }
+    text += ' First find lengths with Pythagoras, then use corresponding sides of similar triangles. No numerical value of a nonstandard angle is needed.';
     tex = R`r=|${pn}${s.a.label}|=|${pn}${s.b.label}|${VA.valueEq(s.r, d.rU)},\quad E_0=|\vec ${s.a.n}|=|\vec ${s.b.n}|=\frac{k|q|}{r^2}${VA.valueEq(s.E, d.unit)}\qquad ` + tex;
     return { id: 'similar', g, sim: s, th: s.th, title: 'Combine ' + s.a.n + ' and ' + s.b.n + ' using similar triangles', text, tex, ask,
       setup: 'Let ' + mn + ' be the midpoint of segment ' + s.a.label + s.b.label + '.',
@@ -424,7 +430,7 @@
       const [a, b] = s.g.items;
       MH.tri(out, [P, M(a.p), M(b.p)], C.pot, 0.08);
       MH.arc(out, P, V.sub(M(a.p), P), V.sub(M(b.p), P), Rr * 0.1, '∠' + a.label + d.pn + b.label);
-      MH.arc(out, P, a.E, b.E, Rr * 0.06, 'θ=' + r1(s.th) + '°');
+      MH.arc(out, P, a.E, b.E, Rr * 0.06, angleLabel(s.th));
     }
     // Similar triangles: the geometric triangle (light) and the tip-to-tail vector triangle
     if (s && (s.id === 'similar' || s.id === 'pairSum') && s.sim) {
@@ -440,7 +446,7 @@
         MH.mark(out, M(m.mid), m.mn, C.mark, Rr * 0.018);
         MH.dash(out, V.add(P, S(m.a.E)), V.add(P, S(g.S))); MH.dash(out, V.add(P, S(m.b.E)), V.add(P, S(g.S)));
       }
-      if (s.id === 'similar') { MH.arc(out, P, m.a.E, m.b.E, Rr * 0.06, 'θ=' + r1(m.th) + '°'); MH.dash(out, P, V.add(P, S(g.S)), C.sum); }
+      if (s.id === 'similar') { MH.arc(out, P, m.a.E, m.b.E, Rr * 0.06, angleLabel(m.th)); MH.dash(out, P, V.add(P, S(g.S)), C.sum); }
     }
     if (s && s.id === 'plane') MH.tri(out, s.g.items.map(x => M(x.p)), C.pot, 0.14);
     steps.slice(0, k + 1).forEach(st => {
