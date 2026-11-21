@@ -1,5 +1,5 @@
 'use strict';
-// Per-frame drawing: opaque meshes → lines → transparent meshes → overlay glow and flow particles → HTML labels
+// 逐帧绘制：不透明网格 → 线 → 透明网格 → 叠加光晕与流动粒子 → HTML 标签
 (function (EL) {
   const V = EL.V, M = EL.M, R = EL.Renderer.prototype, LF = EL.Renderer.LF;
 
@@ -15,7 +15,7 @@
     const vp = cam.matrices(), eye = cam.eye(), is3d = cam.mode !== '2d';
     const span = cam.radius || 6, fog = is3d ? T.fog : 0;
     const fogU = p => { gl.uniform1f(p.u.uFog, fog); gl.uniform1f(p.u.uFogNear, cam.dist - span * 0.6); gl.uniform1f(p.u.uFogFar, cam.dist + span * 1.6); };
-    // Meshes
+    // 网格
     const mp = this.mp;
     gl.useProgram(mp.p);
     gl.uniformMatrix4fv(mp.u.uVP, false, vp);
@@ -37,7 +37,7 @@
     for (const s of sc.spheres || []) drawMesh(this.sphere, M.basis([s.r, 0, 0], [0, s.r, 0], [0, 0, s.r], s.p), s.color, true, 0.8);
     for (const h of this.heads || []) if (!h.revealAt || 1 - Math.pow(1 - this.reveal, 3) >= h.revealAt) drawMesh(this.cone, h.m, h.color, true, 0.3);
     gl.disableVertexAttribArray(mp.a.aP); gl.disableVertexAttribArray(mp.a.aN);
-    // Lines
+    // 线
     if (this.lineCount) {
       const lp = this.lp, F = 4, names = ['aA', 'aB', 'aST', 'aColor', 'aFr'];
       gl.useProgram(lp.p);
@@ -53,7 +53,7 @@
       gl.depthMask(true);
       for (const n of names) gl.disableVertexAttribArray(lp.a[n]);
     }
-    // Transparent meshes: far to near, no depth writes
+    // 透明网格：由远及近，不写深度
     const vd = cam.viewDir();
     const tr = meshes.filter(o => o.mesh.count && o.color[3] != null && o.color[3] < 0.999);
     tr.forEach(o => this.buf(o.mesh));
@@ -63,7 +63,7 @@
     gl.depthMask(false);
     for (const o of tr) drawMesh(o.mesh, I, o.color, o.lit, o.lit === false ? 0 : 0.9);
     gl.disableVertexAttribArray(mp.a.aP); gl.disableVertexAttribArray(mp.a.aN);
-    // Overlay: charge glow (breathing) and flow particles
+    // 叠加：电荷光晕（呼吸）与流动粒子
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     const pxScale = cam.p5 * this.canvas.height / 2;
     if (this.fx.glow && (sc.glows || []).length) {
@@ -111,10 +111,18 @@
     this.labelPreferences.set(key, Object.assign({}, this.labelPreferences.get(key), { visible: !!visible }));
     this.draw();
   };
+  R.nearLabelOffset = function (span, dx, dy) {
+    const w = span?._w || 40, h = span?._h || 20, gap = 32;
+    let x = dx + 7 + w / 2, y = dy - 18 + h / 2;
+    const scale = Math.max(1, Math.hypot(x / (w / 2 + gap), y / (h / 2 + gap)));
+    x /= scale; y /= scale;
+    return [x - w / 2 - 7, y - h / 2 + 18];
+  };
   R.moveLabel = function (key, dx, dy) {
     if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
-    const w = this.cam && this.cam.w || 1000, h = this.cam && this.cam.h || 1000;
-    this.labelPreferences.set(key, Object.assign({}, this.labelPreferences.get(key), { dx: Math.max(-w, Math.min(w, dx)), dy: Math.max(-h, Math.min(h, dy)) }));
+    const span = (this.labelPool || []).find(s => s.dataset.labelKey === key);
+    [dx, dy] = this.nearLabelOffset(span, dx, dy);
+    this.labelPreferences.set(key, Object.assign({}, this.labelPreferences.get(key), { dx, dy }));
     this.draw();
   };
   R.resetLabelOffsets = function (key) {
@@ -148,7 +156,7 @@
       for (const [axis, text] of [['dx', en ? 'Horizontal' : '水平'], ['dy', en ? 'Vertical' : '垂直']]) {
         const field = document.createElement('label'), name = document.createElement('span'), input = document.createElement('input');
         name.textContent = text; input.type = 'number'; input.step = '2'; input.value = Math.round(values[axis]); input.setAttribute('aria-label', text);
-        input.addEventListener('change', () => { const n = Number(input.value); if (!Number.isFinite(n)) { input.value = Math.round(values[axis]); return; } values[axis] = n; this.moveLabel(key, values.dx, values.dy); });
+        input.addEventListener('change', () => { const n = Number(input.value); if (!Number.isFinite(n)) { input.value = Math.round(values[axis]); return; } values[axis] = n; this.moveLabel(key, values.dx, values.dy); Object.assign(values, this.labelPreferences.get(key)); row.querySelectorAll('input').forEach((field, i) => { field.value = Math.round(values[i ? 'dy' : 'dx']); }); });
         field.append(name, input); row.append(field);
       }
       menu.append(row);
@@ -163,7 +171,10 @@
   R.bindLabel = function (span) {
     let press = null, timer = null;
     const end = () => { clearTimeout(timer); timer = null; press = null; span.classList.remove('dragging'); this.labelDrag = null; };
-    span.addEventListener('contextmenu', e => this.labelMenu(e, span.dataset.labelKey));
+    span.addEventListener('contextmenu', e => {
+      if (press && press.pointerType === 'touch') { e.preventDefault(); e.stopPropagation(); return; }
+      this.labelMenu(e, span.dataset.labelKey);
+    });
     span.tabIndex = 0;
     span.addEventListener('keydown', e => {
       const directions = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }, d = directions[e.key];
@@ -175,8 +186,7 @@
     span.addEventListener('pointerdown', e => {
       if (e.button !== 0) return;
       e.preventDefault(); e.stopPropagation();
-      const state = this.labelPreferences.get(span.dataset.labelKey) || {};
-      press = { key: span.dataset.labelKey, x: e.clientX, y: e.clientY, dx: state.dx == null ? span._dx : state.dx, dy: state.dy == null ? span._dy : state.dy, active: false };
+      press = { key: span.dataset.labelKey, pointerType: e.pointerType, x: e.clientX, y: e.clientY, dx: span._dx, dy: span._dy, active: false };
       span.setPointerCapture(e.pointerId);
       timer = setTimeout(() => { if (press) { press.active = true; this.labelDrag = press.key; span.classList.add('dragging'); } }, 450);
     });
@@ -222,11 +232,12 @@
       if (s._t !== L.text) { s._t = L.text; s.innerHTML = EL.U.rich(L.text); s._w = 0; }
       const key = this.getLabelKey(L, i), state = this.labelPreferences.get(key) || {};
       s.dataset.labelKey = key;
-      s.title = document.documentElement.lang.startsWith('en') ? 'Hold to move; right-click for label settings' : '长按拖动；右键设置标注';
+      s.title = document.documentElement.lang.startsWith('en') ? 'Hold and drag near the element; right-click for settings' : '长按拖动，在元素附近调整；右键设置';
       s.style.display = '';
       if (!s._w) { s._w = s.offsetWidth || 8 * String(L.text).length; s._h = s.offsetHeight || 16; }
       const manual = state.dx != null || state.dy != null;
       let dx = state.dx == null ? L.offset?.[0] || 0 : state.dx, dy = state.dy == null ? L.offset?.[1] || 0 : state.dy;
+      [dx, dy] = this.nearLabelOffset(s, dx, dy);
       const box = (a, b) => {
         const x = Math.max(3, Math.min(q[0] + 7 + a, this.cam.w - s._w - 3)), y = Math.max(3, Math.min(q[1] - 18 + b, this.cam.h - s._h - 3));
         return [x, y, x + s._w + 3, y + s._h + 3];
@@ -234,9 +245,9 @@
       if (!manual) {
         const fresh = s._autoKey !== key;
         if (fresh) { s._autoKey = key; s._autoDx = dx; s._autoDy = dy; }
-        const previous = [s._autoDx, s._autoDy];
-        const candidates = [previous, [dx, dy]];
-        for (const radius of [24, 48, 72]) for (let j = 0; j < 12; j++) candidates.push([dx + radius * Math.cos(j * Math.PI / 6), dy + radius * Math.sin(j * Math.PI / 6)]);
+        const previous = this.nearLabelOffset(s, s._autoDx, s._autoDy);
+        const candidates = [previous, [dx, dy], this.nearLabelOffset(s, -s._w - 14, dy)];
+        for (const radius of [16, 28, 40]) for (let j = 0; j < 12; j++) candidates.push(this.nearLabelOffset(s, dx + radius * Math.cos(j * Math.PI / 6), dy + radius * Math.sin(j * Math.PI / 6)));
         const score = v => { const b = box(...v); return 100 * placed.reduce((n, p) => n + area(b, p), 0) + 20 * obstacles.reduce((n, p) => n + area(b, p), 0) + 0.03 * ((v[0] - dx) ** 2 + (v[1] - dy) ** 2) + 0.15 * ((v[0] - previous[0]) ** 2 + (v[1] - previous[1]) ** 2); };
         let best = previous, cost = score(best);
         for (const v of candidates) { const n = score(v); if (n + 1 < cost) { best = v; cost = n; } }
@@ -254,7 +265,7 @@
     });
   };
 
-  // Export PNG: theme background + canvas + labels
+  // 导出 PNG：主题背景 + 画布 + 标签
   R.snapshot = function () {
     this.draw();
     const c = document.createElement('canvas'), dpr = this.canvas.width / this.cam.w;
